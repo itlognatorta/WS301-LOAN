@@ -1,9 +1,6 @@
 <?php
-require_once __DIR__ . '/db_connect_new.php';
-
-$siteStats = $siteStats ?? ['users' => 0, 'loans' => 0, 'savings_accounts' => 0];
-$dbConnected = $dbConnected ?? false;
-$dbError = $dbError ?? '';
+// Connect to database and start session
+require_once __DIR__ . '/db_connect.php'; // session_start() is inside this file
 ?>
 
 <!DOCTYPE html>
@@ -49,7 +46,7 @@ $dbError = $dbError ?? '';
                     <?php echo $dbConnected ? 'Connected to loan_db' : 'Database connection not available'; ?>
                 </div>
 
-                <!-- STATS -->
+                <!-- SITE STATS -->
                 <div class="stats-row">
                     <div class="stat-box">
                         <strong><?php echo number_format($siteStats['users'] ?? 0); ?></strong>
@@ -65,11 +62,12 @@ $dbError = $dbError ?? '';
                     </div>
                 </div>
 
-                <!-- ERROR -->
+                <!-- DB ERROR -->
                 <?php if (!$dbConnected && !empty($dbError)): ?>
                     <p class="db-error"><?php echo htmlspecialchars($dbError); ?></p>
                 <?php endif; ?>
 
+                <!-- HERO BUTTONS -->
                 <div class="hero-actions">
                     <a class="btn btn-primary" href="login.php">Get Started</a>
                     <a class="btn btn-secondary" href="#">Explore Features</a>
@@ -128,7 +126,7 @@ $dbError = $dbError ?? '';
         </div>
     </div>
 
-    <!-- INDICATORS -->
+    <!-- SLIDE INDICATORS -->
     <div class="slide-indicators">
         <button class="indicator active" data-index="0"></button>
         <button class="indicator" data-index="1"></button>
