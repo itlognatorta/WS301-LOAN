@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (isset($_SESSION['admin_id'])) {
-    header('Location: admin/index.php');
+    header('Location: admin/admindashboard.php');
     exit;
 }
 
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($admin && verify_password($password, $admin['password_hash'])) {
             $_SESSION['admin_id'] = $admin['id'];
-            header('Location: index.php');
+header('Location: admindashboard.php');
             exit;
         } else {
             $error = 'Invalid credentials.';
