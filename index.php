@@ -1,6 +1,6 @@
 <?php
-// Connect to database and start session
-require_once __DIR__ . '/db_connect.php'; // session_start() is inside this file
+
+require_once __DIR__ . '/db_connect_new.php'; // session_start() is inside this file
 ?>
 
 <!DOCTYPE html>

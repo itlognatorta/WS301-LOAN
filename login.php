@@ -1,5 +1,14 @@
 <?php
-require_once __DIR__ . '/db_connect.php';
+// SHOW ERRORS (REMOVE IN PRODUCTION)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// START SESSION
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once __DIR__ . '/db_connect_new.php';
 
 $error = '';
 
@@ -29,12 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             strtolower($user['status']) === 'active'
         ) {
 
-            // STORE SESSION
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['account_type'] = $user['account_type'];
 
-            // REDIRECT
             if ($user['account_type'] === 'admin') {
                 header('Location: admin/index.php');
             } else {
@@ -53,23 +60,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - We-Loan</title>
+<link rel="stylesheet" href="login.css">
 </head>
 <body>
 
-<h2>Login</h2>
+<div class="login-container">
 
-<?php if ($error): ?>
-    <p style="color:red;"><?php echo $error; ?></p>
-<?php endif; ?>
+    <div class="login-card">
+        <!-- Close button -->
+        <a href="index.php" class="close-btn">&times;</a>
 
-<form method="POST">
-    <input type="text" name="username" placeholder="Username or Email"><br><br>
-    <input type="password" name="password" placeholder="Password"><br><br>
-    <button type="submit">Login</button>
-</form>
+        <h1>Welcome To We-Loan</h1>
+        <p>Login to your account</p>
+
+        <?php if ($error): ?>
+            <div class="error"><?php echo $error; ?></div>
+        <?php endif; ?>
+
+        <form method="POST">
+            <div class="input-group">
+                <label>Username or Email</label>
+                <input type="text" name="username" required>
+            </div>
+
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" name="password" required>
+            </div>
+
+            <button class="btn-login" type="submit">Login</button>
+        </form>
+
+        <div class="extra-links">
+         <a class="text-link" href="register.php">Create Account</a>
+         <a class="text-link" href="admin/login.php">Admin Login</a>
+        </div>
+    </div>
+
+</div>
 
 </body>
 </html>

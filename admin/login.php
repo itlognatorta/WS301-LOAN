@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/../db_connect_new.php';
 require_once __DIR__ . '/../includes/config.php';
 
 // Start session safely
