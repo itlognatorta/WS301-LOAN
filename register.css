@@ -1,0 +1,123 @@
+/* BACKGROUND */
+body {
+    background: linear-gradient(to right, #020617, #020c1b);
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+/* CONTAINER */
+.register-wrapper {
+    max-width: 900px;
+    margin: 50px auto;
+}
+
+/* STEPS */
+.steps {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.step {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+}
+.step.active {
+    background: #3b82f6;
+}
+
+/* PROGRESS */
+.progress-bar {
+    height: 6px;
+    background: rgba(248, 243, 243, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 25px;
+}
+.progress {
+    height: 100%;
+    width: 33%;
+    background: #3b82f6;
+}
+
+/* FORM */
+.form-card {
+    background: rgba(255,255,255,0.05);
+    padding: 30px;
+    border-radius: 15px;
+}
+
+/* GRID */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px; /* spacing between fields */
+    color: black;
+    margin-bottom: 10px;
+}
+
+/* INPUT STYLE */
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: rgb(0, 0, 0);
+    margin: 5px 0; /* spacing fix */
+}
+
+/* TEXTAREA HEIGHT FIX */
+textarea {
+    min-height: 100px;
+    resize: none;
+}
+
+/* BUTTONS */
+.btn-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-next { background: #3b82f6; }
+.btn-back { background: gray; }
+
+/* STEP VISIBILITY */
+.step-content { display: none; }
+.step-content.active { display: block; }
+
+/* MOBILE */
+@media(max-width:768px){
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Make textarea same height as inputs */
+textarea {
+    height: 48px;
+    resize: none;
+}
+
+/* Align inputs perfectly */
+.form-row input,
+.form-row select,
+.form-row textarea {
+    height: 48px;
+}
+
+/* Fix spacing consistency */
+.form-row {
+    margin-bottom: 15px;
+}
