@@ -1,60 +1,47 @@
 <?php
-// SHOW ERRORS (REMOVE IN PRODUCTION)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// START SESSION
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
+session_start();
 require_once __DIR__ . '/db_connect_new.php';
 
-$error = '';
+$emailError = $passwordError = '';
+$email = $password = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    $username = htmlspecialchars(trim($_POST['username'] ?? ''));
+    $email = htmlspecialchars(trim($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
 
-    if (empty($username) || empty($password)) {
-        $error = 'Username and password are required.';
-    } 
-    elseif ($dbConnected && $pdo) {
+    // Email validation
+    if (empty($email)) {
+        $emailError = 'Email is required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $emailError = 'Invalid email format.';
+    }
 
-        $stmt = $pdo->prepare("
-            SELECT id, username, password_hash, status, account_type
-            FROM users
-            WHERE username = ? OR email = ?
-            LIMIT 1
-        ");
+    // Password validation
+    if (empty($password)) {
+        $passwordError = 'Password is required.';
+    }
 
-        $stmt->execute([$username, $username]);
+    // Proceed if no errors
+    if (!$emailError && !$passwordError && $dbConnected && $pdo) {
+        $stmt = $pdo->prepare("SELECT id, email, password_hash, status, account_type FROM users WHERE email = ? LIMIT 1");
+        $stmt->execute([$email]);
         $user = $stmt->fetch();
 
-        if (
-            $user &&
-            password_verify($password, $user['password_hash']) &&
-            strtolower($user['status']) === 'active'
-        ) {
-
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['account_type'] = $user['account_type'];
-
-            if ($user['account_type'] === 'admin') {
-                header('Location: admin/index.php');
+        if ($user) {
+            if (!password_verify($password, $user['password_hash'])) {
+                $passwordError = 'Incorrect password.';
+            } elseif (strtolower($user['status']) !== 'active') {
+                $passwordError = 'Account is inactive.';
             } else {
-                header('Location: dashboard.php');
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['account_type'] = $user['account_type'];
+                header('Location: ' . ($user['account_type'] === 'admin' ? 'admin/index.php' : 'dashboard.php'));
+                exit;
             }
-            exit;
-
         } else {
-            $error = 'Invalid credentials or inactive account.';
+            $emailError = 'Email not found.';
         }
-
-    } else {
-        $error = 'Database connection failed.';
     }
 }
 ?>
@@ -64,45 +51,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login - We-Loan</title>
+<title>We-Loan | Login</title>
 <link rel="stylesheet" href="login.css">
 </head>
 <body>
 
-<div class="login-container">
+<div class="background-image"></div> <!-- Full background -->
 
+<div class="login-wrapper">
     <div class="login-card">
-        <!-- Close button -->
-        <a href="index.php" class="close-btn">&times;</a>
+        <button class="close-btn" onclick="window.location.href='index.php'">&times;</button>
 
-        <h1>Welcome To We-Loan</h1>
-        <p>Login to your account</p>
+        <div class="logo-area">
+            <img src="images/logo1.png" alt="We-Loan Logo" class="logo-img">
+        </div>
 
-        <?php if ($error): ?>
-            <div class="error"><?php echo $error; ?></div>
-        <?php endif; ?>
+        <h2 class="login-title">Login to We-Loan</h2>
 
-        <form method="POST">
-            <div class="input-group">
-                <label>Username or Email</label>
-                <input type="text" name="username" required>
+        <form method="POST" class="login-form" novalidate>
+            <!-- Email -->
+            <div class="input-group <?php echo $emailError ? 'error' : ''; ?>">
+                <input type="email" name="email" placeholder="Email" value="<?php echo htmlspecialchars($email); ?>">
+                <?php if ($emailError): ?>
+                    <span class="error-text"><?php echo $emailError; ?></span>
+                <?php endif; ?>
             </div>
 
-            <div class="input-group">
-                <label>Password</label>
-                <input type="password" name="password" required>
+            <!-- Password -->
+            <div class="input-group password-wrapper <?php echo $passwordError ? 'error' : ''; ?>">
+                <input type="password" name="password" placeholder="Password" id="password-field">
+                <span class="toggle-password" onclick="togglePassword()">
+                    <img id="eye-icon" src="images/hide.png" alt="Toggle Password">
+                </span>
+                <?php if ($passwordError): ?>
+                    <span class="error-text"><?php echo $passwordError; ?></span>
+                <?php endif; ?>
             </div>
 
-            <button class="btn-login" type="submit">Login</button>
+            <label class="remember">
+                <input type="checkbox" name="remember"> Remember me
+            </label>
+
+            <button type="submit" class="btn-login">Sign In</button>
         </form>
 
-        <div class="extra-links">
-         <a class="text-link" href="register.php">Create Account</a>
-         <a class="text-link" href="admin/login.php">Admin Login</a>
+        <div class="login-links">
+            <a href="register.php">New to We-Loan? Register now</a>
+            <a href="admin/login.php" class="admin-login">Admin Login</a>
         </div>
     </div>
-
 </div>
+
+<script>
+function togglePassword() {
+    const field = document.getElementById('password-field');
+    const icon = document.getElementById('eye-icon');
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.src = 'images/show.png';
+    } else {
+        field.type = 'password';
+        icon.src = 'images/hide.png';
+    }
+}
+</script>
 
 </body>
 </html>

@@ -1,24 +1,23 @@
-<?php
-
+<?php 
 require_once __DIR__ . '/db_connect_new.php'; // session_start() is inside this file
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loan System | Home</title>
-    <link rel="stylesheet" href="index.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan System | Home</title>
+<link rel="stylesheet" href="index.css">
 </head>
 <body>
 
+<!-- HEADER -->
 <header class="topbar">
     <div class="logo">
         <img src="images/logo1.png" alt="Logo" class="logo-img">
         <span>Loan System</span>
     </div>
-
     <nav class="nav-links">
         <a href="#">Home</a>
         <a href="#">Loans</a>
@@ -27,6 +26,7 @@ require_once __DIR__ . '/db_connect_new.php'; // session_start() is inside this 
     </nav>
 </header>
 
+<!-- HERO / SLIDES -->
 <section class="hero-slideshow">
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
@@ -62,15 +62,13 @@ require_once __DIR__ . '/db_connect_new.php'; // session_start() is inside this 
                     </div>
                 </div>
 
-                <!-- DB ERROR -->
                 <?php if (!$dbConnected && !empty($dbError)): ?>
                     <p class="db-error"><?php echo htmlspecialchars($dbError); ?></p>
                 <?php endif; ?>
 
-                <!-- HERO BUTTONS -->
                 <div class="hero-actions">
-                    <a class="btn btn-primary" href="login.php">Get Started</a>
-                    <a class="btn btn-secondary" href="#">Explore Features</a>
+                    <a href="login.php" class="btn btn-primary">Get Started</a>
+                    <a href="#" class="btn btn-secondary">Explore Features</a>
                 </div>
             </div>
         </div>
