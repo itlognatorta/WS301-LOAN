@@ -84,6 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <body>
 
+<div class="background-image"></div> <!-- Full background -->
+
 <div class="register-wrapper">
 
 <div class="steps">
@@ -122,33 +124,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <option>Basic</option>
         <option>Premium</option>
     </select>
+    <small class="error-text">Please select account type</small>
 
     <input type="text" name="name" placeholder="Full Name" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <textarea name="address" placeholder="Address" class="input-equal" required></textarea>
+    <small class="error-text">This field is required</small>
 
     <select name="gender">
         <option value="">Gender</option>
         <option>Male</option>
         <option>Female</option>
     </select>
+    <small class="error-text">Please select gender</small>
 </div>
 
 <div class="form-row">
     <input type="date" id="birthday" name="birthday" onchange="calcAge()" required>
+    <small class="error-text">Please select birthday</small>
     <input type="text" id="age" placeholder="Age" readonly>
+    <small class="error-text">Age will be automatically calculated</small>
 </div>
 
 <div class="form-row">
     <input type="email" name="email" placeholder="Email" required>
+    <small class="error-text">Please enter a valid email</small>
     <input type="text" name="contact" placeholder="Phone (09xxxxxxxxx)" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <input type="text" name="username" placeholder="Username" required>
+    <small class="error-text">Username must be at least 6 characters</small>
     <input type="password" name="password" placeholder="Password" required>
+    <small class="error-text">Password must be at least 8 characters</small>
 </div>
 
 <div class="btn-group">
@@ -162,26 +174,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="form-row">
     <input type="text" name="bank_name" placeholder="Bank Name" required>
+    <small class="error-text">This field is required</small>
     <input type="text" name="bank_acc" placeholder="Bank Account #" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <input type="text" name="card_name" placeholder="Card Holder Name" required>
+    <small class="error-text">This field is required</small>
     <input type="text" name="tin" placeholder="TIN #" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <input type="text" name="company_name" placeholder="Company Name" required>
+    <small class="error-text">This field is required</small>
     <input type="text" name="company_address" placeholder="Company Address" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <input type="text" name="company_phone" placeholder="Company Phone" required>
+    <small class="error-text">This field is required</small>
     <input type="text" name="position" placeholder="Position" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <input type="number" name="earnings" placeholder="Monthly Earnings" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="btn-group">
@@ -196,16 +217,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="form-row">
     <input type="file" name="proof" required>
+    <small class="error-text">This field is required</small>
     <input type="file" name="valid_id" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="form-row">
     <input type="file" name="coe" class="full-width" required>
+    <small class="error-text">This field is required</small>
 </div>
 
 <div class="btn-group">
     <button type="button" class="btn btn-back" onclick="prevStep()">Back</button>
-    <button type="submit" class="btn btn-next">Submit</button>
+    <button type="submit" class="btn btn-next" onclick="return validateFinalStep()">Submit</button>
 </div>
 </div>
 
@@ -226,10 +250,75 @@ function showStep(index){
     progress.style.width = ((index+1)/3)*100 + "%";
 }
 
+function validateStep(stepIndex){
+    let valid = true;
+
+    const currentFields = steps[stepIndex].querySelectorAll("input, select, textarea");
+
+    currentFields.forEach(field => {
+        let errorText = field.parentElement.querySelector(".error-text");
+
+        // RESET
+        field.classList.remove("input-error");
+        if(errorText) errorText.classList.remove("active");
+
+        // CHECK EMPTY
+        if(field.type !== "file" && field.value.trim() === ""){
+            field.classList.add("input-error");
+            if(errorText){
+                errorText.textContent = "This field is required";
+                errorText.classList.add("active");
+            }
+            valid = false;
+        }
+
+        // FILE VALIDATION
+        if(field.type === "file" && field.files.length === 0){
+            field.classList.add("input-error");
+            if(errorText){
+                errorText.textContent = "Please upload required file";
+                errorText.classList.add("active");
+            }
+            valid = false;
+        }
+
+        // EMAIL VALIDATION
+        if(field.type === "email" && field.value !== ""){
+            let emailPattern = /^[^ ]+@[^ ]+\.[a-z]{2,3}$/;
+            if(!emailPattern.test(field.value)){
+                field.classList.add("input-error");
+                if(errorText){
+                    errorText.textContent = "Invalid email format";
+                    errorText.classList.add("active");
+                }
+                valid = false;
+            }
+        }
+
+        // PHONE VALIDATION
+        if(field.name === "contact" && field.value !== ""){
+            let phonePattern = /^09[0-9]{9}$/;
+            if(!phonePattern.test(field.value)){
+                field.classList.add("input-error");
+                if(errorText){
+                    errorText.textContent = "Invalid PH number";
+                    errorText.classList.add("active");
+                }
+                valid = false;
+            }
+        }
+    });
+
+    return valid;
+
+}
+
 function nextStep(){
-    if(currentStep < 2){
-        currentStep++;
-        showStep(currentStep);
+    if(validateStep(currentStep)){  // 🔥 VALIDATE FIRST
+        if(currentStep < 2){
+            currentStep++;
+            showStep(currentStep);
+        }
     }
 }
 
@@ -261,6 +350,36 @@ function closeCancelModal(){
 
 function confirmCancel(){
     window.location.href = "index.php";
+}
+
+function validateFinalStep(){
+
+    const currentFields = steps[currentStep].querySelectorAll("input, select, textarea");
+    let valid = true;
+
+    currentFields.forEach(field => {
+
+        if(field.hasAttribute("readonly")) return;
+
+        if(!field.value.trim()){
+            field.style.border = "2px solid red";
+            valid = false;
+        } else {
+            field.style.border = "none";
+        }
+
+        if(field.type === "file" && field.files.length === 0){
+            field.style.border = "2px solid red";
+            valid = false;
+        }
+    });
+
+    if(!valid){
+        alert("Please complete all required fields before submitting.");
+        return false;
+    }
+
+    return true;
 }
 
 showStep(0);
