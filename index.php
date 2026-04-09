@@ -20,8 +20,6 @@ require_once __DIR__ . '/db_connect_new.php'; // session_start() is inside this 
     </div>
     <nav class="nav-links">
         <a href="#">Home</a>
-        <a href="#">Loans</a>
-        <a href="#">Savings</a>
         <a href="login.php" class="btn btn-outline">Login</a>
     </nav>
 </header>
