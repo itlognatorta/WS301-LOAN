@@ -104,10 +104,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <form method="POST" enctype="multipart/form-data" class="form-card">
 
+<div class="form-header">
+    <h2>Register Account</h2>
+    <a href="index.php" class="close-btn" onclick="return confirm('Leave registration?');">&times;</a>
+</div>
+
 <!-- STEP 1 -->
 <div class="step-content active">
 
-<h2>Step 1 of 3 — Personal</h2>
+<h3>Step 1 of 3 — Personal</h3>
 
 <!-- ROW 1 -->
 <div class="form-row">
@@ -122,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!-- ROW 2 -->
 <div class="form-row">
-    <textarea name="address" placeholder="Address" required></textarea>
+    <textarea name="address" placeholder="Address" class="input-equal" required></textarea>
 
     <select name="gender">
         <option value="">Gender</option>

@@ -121,3 +121,41 @@ textarea {
 .form-row {
     margin-bottom: 15px;
 }
+
+/* HEADER WITH CLOSE BUTTON */
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* CLOSE BUTTON */
+.close-btn {
+    font-size: 28px;
+    color: white;
+    text-decoration: none;
+    background: rgba(255,255,255,0.1);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.close-btn:hover {
+    background: #ef4444;
+}
+
+/* FORCE SAME HEIGHT FOR ADDRESS */
+.input-equal {
+    height: 48px !important;
+}
+
+/* FIX TEXTAREA EXACT MATCH */
+textarea.input-equal {
+    padding-top: 12px;
+    line-height: normal;
+}
