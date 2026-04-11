@@ -1,74 +1,97 @@
 <?php
 require_once __DIR__ . '/db_connect_new.php';
 
-$error = '';
+$errors = [];
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $account_type = $_POST['account_type'];
-    $name = $_POST['name'];
-    $address = $_POST['address'];
-    $gender = $_POST['gender'];
-    $birthday = $_POST['birthday'];
-    $email = $_POST['email'];
-    $contact = $_POST['contact'];
-    $username = $_POST['username'];
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    // =========================
+    // STEP 1: PERSONAL
+    // =========================
+    $account_type = $_POST['account_type'] ?? '';
+    $name = trim($_POST['name'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+    $gender = $_POST['gender'] ?? '';
+    $birthday = $_POST['birthday'] ?? '';
+    $email = trim($_POST['email'] ?? '');
+    $contact = trim($_POST['contact'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-    $bank_name = $_POST['bank_name'];
-    $bank_acc = $_POST['bank_acc'];
-    $card_name = $_POST['card_name'];
-    $tin = $_POST['tin'];
-    $company_name = $_POST['company_name'];
-    $company_address = $_POST['company_address'];
-    $company_phone = $_POST['company_phone'];
-    $position = $_POST['position'];
-    $earnings = $_POST['earnings'];
+    // =========================
+    // STEP 2: WORK & BANK
+    // =========================
+    $bank_name = trim($_POST['bank_name'] ?? '');
+    $bank_account = trim($_POST['bank_account'] ?? '');
+    $card_name = trim($_POST['card_name'] ?? '');
+    $tin = trim($_POST['tin'] ?? '');
 
-    $errors = [];
+    $company_name = trim($_POST['company_name'] ?? '');
+    $company_address = trim($_POST['company_address'] ?? '');
+    $company_phone = trim($_POST['company_phone'] ?? '');
+    $position = trim($_POST['position'] ?? '');
+    $salary = trim($_POST['salary'] ?? '');
 
-    if(strlen($username) < 6) $errors[] = "Username must be at least 6 characters.";
-    if(!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email.";
-    if(!preg_match('/^09[0-9]{9}$/', $contact)) $errors[] = "Invalid PH contact number.";
+    // =========================
+    // VALIDATIONS
+    // =========================
 
-    if($account_type == "Premium"){
-        $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE account_type='Premium'");
-        $row = $stmt->fetch();
-        if($row['total'] >= 50){
+    if (!$account_type) $errors[] = "Account type is required.";
+    if (!$name) $errors[] = "Name is required.";
+    if (!$address) $errors[] = "Address is required.";
+    if (!$birthday) $errors[] = "Birthday is required.";
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email.";
+
+    if (!preg_match('/^09\d{9}$/', $contact)) {
+        $errors[] = "Invalid PH contact number.";
+    }
+
+    if (!$password) $errors[] = "Password is required.";
+
+    if (!$bank_name || !$bank_account || !$card_name) {
+        $errors[] = "Bank details are required.";
+    }
+
+    if (!$tin) $errors[] = "TIN is required.";
+
+    if (!$company_name || !$company_phone) {
+        $errors[] = "Company details are required.";
+    }
+
+    // =========================
+    // CHECK PREMIUM LIMIT
+    // =========================
+    if ($account_type === 'premium') {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE account_type='premium'");
+        $count = $stmt->fetchColumn();
+
+        if ($count >= 50) {
             $errors[] = "Premium slots are full.";
         }
     }
 
-    $proof = $_FILES['proof']['name'];
-    $valid_id = $_FILES['valid_id']['name'];
-    $coe = $_FILES['coe']['name'];
+    // =========================
+    // INSERT
+    // =========================
+    if (empty($errors)) {
 
-    if(empty($proof) || empty($valid_id) || empty($coe)){
-        $errors[] = "All uploads are required.";
-    }
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-    if(empty($errors)){
-
-        move_uploaded_file($_FILES['proof']['tmp_name'], "uploads/".$proof);
-        move_uploaded_file($_FILES['valid_id']['tmp_name'], "uploads/".$valid_id);
-        move_uploaded_file($_FILES['coe']['tmp_name'], "uploads/".$coe);
-
-        $stmt = $pdo->prepare("INSERT INTO users 
-        (account_type,name,address,gender,birthday,email,contact,username,password,
-        bank_name,bank_acc,card_name,tin,company_name,company_address,company_phone,
-        position,earnings,proof,valid_id,coe,status)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Pending')");
+        $stmt = $pdo->prepare("
+            INSERT INTO users 
+            (account_type, name, address, gender, birthday, email, contact, password_hash,
+             bank_name, bank_account, card_name, tin,
+             company_name, company_address, company_phone, position, salary, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'pending')
+        ");
 
         $stmt->execute([
-            $account_type,$name,$address,$gender,$birthday,$email,$contact,$username,$password,
-            $bank_name,$bank_acc,$card_name,$tin,$company_name,$company_address,$company_phone,
-            $position,$earnings,$proof,$valid_id,$coe
+            $account_type, $name, $address, $gender, $birthday, $email, $contact, $password_hash,
+            $bank_name, $bank_account, $card_name, $tin,
+            $company_name, $company_address, $company_phone, $position, $salary
         ]);
 
-        $success = "Registration submitted! Waiting for admin approval.";
-    } else {
-        $error = implode("<br>", $errors);
+        $success = "Registration submitted. Waiting for admin approval.";
     }
 }
 ?>
@@ -77,327 +100,164 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Register | Loan System</title>
-<link rel="stylesheet" href="index.css">
+<title>Register</title>
 <link rel="stylesheet" href="register.css">
 </head>
-
 <body>
 
-<div class="background-image"></div> <!-- Full background -->
+<div class="background-image"></div>
 
-<div class="register-wrapper">
+<div class="register-container">
 
-<div class="steps">
-    <div class="step active">1. Personal</div>
-    <div class="step">2. Work & Bank</div>
-    <div class="step">3. Verification</div>
+<h2>Register Account</h2>
+
+<?php if ($errors): ?>
+<div class="error-box">
+    <?php foreach ($errors as $e) echo "<p>$e</p>"; ?>
+</div>
+<?php endif; ?>
+
+<?php if ($success): ?>
+<div class="success-box"><?php echo $success; ?></div>
+<?php endif; ?>
+
+<form method="POST" enctype="multipart/form-data">
+
+<div class="step-tabs">
+    <div class="step-tab active" id="tab1">1. Personal</div>
+    <div class="step-tab" id="tab2">2. Work & Bank</div>
+    <div class="step-tab" id="tab3">3. Verification</div>
 </div>
 
 <div class="progress-bar">
     <div class="progress" id="progress"></div>
 </div>
 
-<form method="POST" enctype="multipart/form-data" class="form-card">
-
-<!-- HEADER -->
-<div class="form-header">
-    <h2>Register Account</h2>
-    <a href="#" class="close-btn" onclick="openCancelModal()">&times;</a>
-</div>
-
-<?php if($error): ?>
-<p class="error"><?php echo $error; ?></p>
-<?php endif; ?>
-
-<?php if($success): ?>
-<p class="success"><?php echo $success; ?></p>
-<?php endif; ?>
-
 <!-- STEP 1 -->
-<div class="step-content active">
-<h3 class="step-title">Step 1 of 3 — Personal</h3>
+<div class="step active" id="step1">
+<h3>Step 1: Personal</h3>
 
-<div class="form-row">
-    <select name="account_type" required>
-        <option value="">Account Type</option>
-        <option>Basic</option>
-        <option>Premium</option>
-    </select>
-    <small class="error-text">Please select account type</small>
+<select name="account_type" required>
+<option value="">Account Type</option>
+<option value="basic">Basic</option>
+<option value="premium">Premium</option>
+</select>
 
-    <input type="text" name="name" placeholder="Full Name" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="name" placeholder="Full Name" required>
+<input type="text" name="address" placeholder="Address" required>
 
-<div class="form-row">
-    <textarea name="address" placeholder="Address" class="input-equal" required></textarea>
-    <small class="error-text">This field is required</small>
+<select name="gender">
+<option value="">Gender</option>
+<option>Male</option>
+<option>Female</option>
+</select>
 
-    <select name="gender">
-        <option value="">Gender</option>
-        <option>Male</option>
-        <option>Female</option>
-    </select>
-    <small class="error-text">Please select gender</small>
-</div>
+<input type="date" name="birthday" id="birthday" required>
+<input type="text" id="age" placeholder="Age" readonly>
 
-<div class="form-row">
-    <input type="date" id="birthday" name="birthday" onchange="calcAge()" required>
-    <small class="error-text">Please select birthday</small>
-    <input type="text" id="age" placeholder="Age" readonly>
-    <small class="error-text">Age will be automatically calculated</small>
-</div>
+<input type="email" name="email" placeholder="Email" required>
+<input type="text" name="contact" placeholder="09XXXXXXXXX" required>
 
-<div class="form-row">
-    <input type="email" name="email" placeholder="Email" required>
-    <small class="error-text">Please enter a valid email</small>
-    <input type="text" name="contact" placeholder="Phone (09xxxxxxxxx)" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="username" placeholder="Username" required>
 
-<div class="form-row">
-    <input type="text" name="username" placeholder="Username" required>
-    <small class="error-text">Username must be at least 6 characters</small>
-    <input type="password" name="password" placeholder="Password" required>
-    <small class="error-text">Password must be at least 8 characters</small>
-</div>
+<input type="password" name="password" placeholder="Password" required>
 
+<!-- BUTTONS -->
 <div class="btn-group">
-    <button type="button" class="btn btn-next" onclick="nextStep()">Next</button>
+    <button type="button" class="btn-secondary" onclick="window.location.href='login.php'">Cancel</button>
+    <button type="button" class="btn-primary" onclick="nextStep(2)">Next</button>
 </div>
+
 </div>
 
 <!-- STEP 2 -->
-<div class="step-content">
-<h3 class="step-title">Step 2 of 3 — Work & Bank</h3>
+<div class="step" id="step2">
+<h3>Step 2: Work & Bank</h3>
 
-<div class="form-row">
-    <input type="text" name="bank_name" placeholder="Bank Name" required>
-    <small class="error-text">This field is required</small>
-    <input type="text" name="bank_acc" placeholder="Bank Account #" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="bank_name" placeholder="Bank Name" required>
+<input type="text" name="bank_account" placeholder="Account Number" required>
 
-<div class="form-row">
-    <input type="text" name="card_name" placeholder="Card Holder Name" required>
-    <small class="error-text">This field is required</small>
-    <input type="text" name="tin" placeholder="TIN #" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="card_name" placeholder="Card Holder Name" required>
 
-<div class="form-row">
-    <input type="text" name="company_name" placeholder="Company Name" required>
-    <small class="error-text">This field is required</small>
-    <input type="text" name="company_address" placeholder="Company Address" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="tin" placeholder="TIN Number" required>
 
-<div class="form-row">
-    <input type="text" name="company_phone" placeholder="Company Phone" required>
-    <small class="error-text">This field is required</small>
-    <input type="text" name="position" placeholder="Position" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="company_name" placeholder="Company Name" required>
+<input type="text" name="company_address" placeholder="Company Address">
 
-<div class="form-row">
-    <input type="number" name="earnings" placeholder="Monthly Earnings" required>
-    <small class="error-text">This field is required</small>
-</div>
+<input type="text" name="company_phone" placeholder="HR Contact Number" required>
+
+<input type="text" name="position" placeholder="Position">
+<input type="number" name="salary" placeholder="Monthly Salary">
 
 <div class="btn-group">
-    <button type="button" class="btn btn-back" onclick="prevStep()">Back</button>
-    <button type="button" class="btn btn-next" onclick="nextStep()">Next</button>
+    <button type="button" class="btn-secondary" onclick="prevStep(1)">Back</button>
+    <button type="button" class="btn-primary" onclick="nextStep(3)">Next</button>
 </div>
+
 </div>
 
 <!-- STEP 3 -->
-<div class="step-content">
-<h3 class="step-title">Step 3 of 3 — Verification</h3>
+<div class="step" id="step3">
+<h3>Step 3: Verification</h3>
 
-<div class="form-row">
-    <input type="file" name="proof" required>
-    <small class="error-text">This field is required</small>
-    <input type="file" name="valid_id" required>
-    <small class="error-text">This field is required</small>
-</div>
+<label>Proof of Billing</label>
+<input type="file" required>
 
-<div class="form-row">
-    <input type="file" name="coe" class="full-width" required>
-    <small class="error-text">This field is required</small>
-</div>
+<label>Valid ID</label>
+<input type="file" required>
+
+<label>COE</label>
+<input type="file" required>
 
 <div class="btn-group">
-    <button type="button" class="btn btn-back" onclick="prevStep()">Back</button>
-    <button type="submit" class="btn btn-next" onclick="return validateFinalStep()">Submit</button>
+    <button type="button" class="btn-secondary" onclick="prevStep(2)">Back</button>
+    <button type="submit" class="btn-primary">Submit</button>
 </div>
+
 </div>
 
 </form>
 </div>
 
 <script>
-let currentStep = 0;
-const steps = document.querySelectorAll(".step-content");
-const progress = document.getElementById("progress");
-const stepLabels = document.querySelectorAll(".step");
 
-function showStep(index){
-    steps.forEach((step,i)=>{
-        step.classList.toggle("active", i===index);
-        stepLabels[i].classList.toggle("active", i===index);
-    });
-    progress.style.width = ((index+1)/3)*100 + "%";
+// STEP NAVIGATION
+function nextStep(step){
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step'+step).classList.add('active');
+
+    document.querySelectorAll('.step-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab'+step).classList.add('active');
+
+    // ✅ UPDATE PROGRESS BAR
+    const progress = document.getElementById('progress');
+
+    if(step === 1) progress.style.width = "33.33%";
+    if(step === 2) progress.style.width = "66.66%";
+    if(step === 3) progress.style.width = "100%";
 }
 
-function validateStep(stepIndex){
-    let valid = true;
-
-    const currentFields = steps[stepIndex].querySelectorAll("input, select, textarea");
-
-    currentFields.forEach(field => {
-        let errorText = field.parentElement.querySelector(".error-text");
-
-        // RESET
-        field.classList.remove("input-error");
-        if(errorText) errorText.classList.remove("active");
-
-        // CHECK EMPTY
-        if(field.type !== "file" && field.value.trim() === ""){
-            field.classList.add("input-error");
-            if(errorText){
-                errorText.textContent = "This field is required";
-                errorText.classList.add("active");
-            }
-            valid = false;
-        }
-
-        // FILE VALIDATION
-        if(field.type === "file" && field.files.length === 0){
-            field.classList.add("input-error");
-            if(errorText){
-                errorText.textContent = "Please upload required file";
-                errorText.classList.add("active");
-            }
-            valid = false;
-        }
-
-        // EMAIL VALIDATION
-        if(field.type === "email" && field.value !== ""){
-            let emailPattern = /^[^ ]+@[^ ]+\.[a-z]{2,3}$/;
-            if(!emailPattern.test(field.value)){
-                field.classList.add("input-error");
-                if(errorText){
-                    errorText.textContent = "Invalid email format";
-                    errorText.classList.add("active");
-                }
-                valid = false;
-            }
-        }
-
-        // PHONE VALIDATION
-        if(field.name === "contact" && field.value !== ""){
-            let phonePattern = /^09[0-9]{9}$/;
-            if(!phonePattern.test(field.value)){
-                field.classList.add("input-error");
-                if(errorText){
-                    errorText.textContent = "Invalid PH number";
-                    errorText.classList.add("active");
-                }
-                valid = false;
-            }
-        }
-    });
-
-    return valid;
-
+function prevStep(step){
+    nextStep(step);
 }
 
-function nextStep(){
-    if(validateStep(currentStep)){  // 🔥 VALIDATE FIRST
-        if(currentStep < 2){
-            currentStep++;
-            showStep(currentStep);
-        }
-    }
-}
+// AGE AUTO CALCULATION
+document.getElementById('birthday').addEventListener('change', function(){
+    let birth = new Date(this.value);
+    let today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
 
-function prevStep(){
-    if(currentStep > 0){
-        currentStep--;
-        showStep(currentStep);
-    }
-}
-
-function calcAge(){
-    let b = new Date(document.getElementById("birthday").value);
-    let t = new Date();
-    let age = t.getFullYear() - b.getFullYear();
-    document.getElementById("age").value = age;
-}
-
-function confirmCancel(){
-    return confirm("Are you sure to cancel registration?");
-}
-
-function openCancelModal(){
-    document.getElementById("cancelModal").classList.add("active");
-}
-
-function closeCancelModal(){
-    document.getElementById("cancelModal").classList.remove("active");
-}
-
-function confirmCancel(){
-    window.location.href = "login.php";
-}
-
-function validateFinalStep(){
-
-    const currentFields = steps[currentStep].querySelectorAll("input, select, textarea");
-    let valid = true;
-
-    currentFields.forEach(field => {
-
-        if(field.hasAttribute("readonly")) return;
-
-        if(!field.value.trim()){
-            field.style.border = "2px solid red";
-            valid = false;
-        } else {
-            field.style.border = "none";
-        }
-
-        if(field.type === "file" && field.files.length === 0){
-            field.style.border = "2px solid red";
-            valid = false;
-        }
-    });
-
-    if(!valid){
-        alert("Please complete all required fields before submitting.");
-        return false;
+    let m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
     }
 
-    return true;
-}
+    document.getElementById('age').value = age;
+});
 
-showStep(0);
+document.getElementById('progress').style.width = "33.33%";
+
 </script>
-
-<!-- 🔥 CUSTOM CANCEL MODAL -->
-<div id="cancelModal" class="modal-overlay">
-    <div class="modal-box">
-        <h3>Cancel Registration</h3>
-        <p>Are you sure to cancel registration?</p>
-
-        <div class="modal-actions">
-            <button class="btn btn-back" onclick="closeCancelModal()">No</button>
-            <button class="btn btn-next" onclick="confirmCancel()">Yes</button>
-        </div>
-    </div>
-</div>
-
 
 </body>
 </html>
