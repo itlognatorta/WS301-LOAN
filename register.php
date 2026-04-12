@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!-- BUTTONS -->
 <div class="btn-group">
-    <button type="button" class="btn-secondary" onclick="window.location.href='login.php'">Cancel</button>
+    <button type="button" class="btn-secondary" onclick="openModal()">Cancel</button>
     <button type="button" class="btn-primary" onclick="nextStep(2)">Next</button>
 </div>
 
@@ -257,7 +257,31 @@ document.getElementById('birthday').addEventListener('change', function(){
 
 document.getElementById('progress').style.width = "33.33%";
 
+function openModal() {
+    document.getElementById('cancelModal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('cancelModal').classList.remove('active');
+}
+
+function confirmCancel() {
+    window.location.href = 'login.php';
+}
+
 </script>
+
+<div class="modal-overlay" id="cancelModal">
+    <div class="modal-box">
+        <h3>Cancel Registration?</h3>
+        <p>Are you sure you want to cancel? Your progress will be lost.</p>
+
+        <div class="modal-actions">
+            <button class="btn-back" onclick="closeModal()">No</button>
+            <button class="btn-next" onclick="confirmCancel()">Yes</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
