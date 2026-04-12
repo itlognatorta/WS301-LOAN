@@ -32,7 +32,7 @@ $totalLoan = $totalLoan->fetchColumn() ?? 0;
 // ==========================
 $savings = $pdo->prepare("
     SELECT SUM(amount) 
-    FROM savings 
+    FROM savings_transactions 
     WHERE user_id=?
 ");
 $savings->execute([$user_id]);
@@ -47,7 +47,7 @@ $cashback = $pdo->prepare("
     WHERE user_id=?
 ");
 $cashback->execute([$user_id]);
-$cashback = $cashback->fetchColumn() ?? 0;
+// $cashback = $cashback->fetchColumn() ?? 0;
 
 // ==========================
 // RECENT TRANSACTIONS

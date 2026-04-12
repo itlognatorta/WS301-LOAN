@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     if ($user['account_type'] === 'premium') {
-                        header('Location: prem_user/dashboard.php');
+                        header('Location: premium_user/premium_dashboard.php');
                         exit;
                     }
 

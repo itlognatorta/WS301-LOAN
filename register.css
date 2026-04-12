@@ -341,3 +341,14 @@ input[type="file"]::file-selector-button {
         opacity: 1;
     }
 }
+
+/* SUCCESS MODAL HOVER EFFECT */
+.success-modal-box {
+    border: 2px solid transparent;
+    transition: 0.3s;
+}
+
+.success-modal-box:hover {
+    border: 2px solid #22c55e; /* green */
+    box-shadow: 0 0 15px rgba(34,197,94,0.6);
+}

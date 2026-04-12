@@ -93,38 +93,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $upload_dir = __DIR__ . '/uploads/';
 
+if (!is_dir($upload_dir)) {
+    mkdir($upload_dir, 0777, true);
+}
+
     function uploadFile($file_key, $prefix) {
-        global $errors, $upload_dir;
+    global $errors, $upload_dir;
 
-        if (!isset($_FILES[$file_key]) || $_FILES[$file_key]['error'] !== UPLOAD_ERR_OK) {
-            return null;
-        }
-
-        $file = $_FILES[$file_key];
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-        $max_size = 5 * 1024 * 1024; // 5MB
-
-        if (!in_array($file['type'], $allowed_types)) {
-            $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' must be an image or PDF.';
-            return null;
-        }
-
-        if ($file['size'] > $max_size) {
-            $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' file size must be less than 5MB.';
-            return null;
-        }
-
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = $prefix . '_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
-        $filepath = $upload_dir . $filename;
-
-        if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            return $filename;
-        } else {
-            $errors[] = 'Failed to upload ' . str_replace('_', ' ', $file_key) . '.';
-            return null;
-        }
+    if (!isset($_FILES[$file_key]) || $_FILES[$file_key]['error'] !== UPLOAD_ERR_OK) {
+        $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' is required.';
+        return null;
     }
+
+    $file = $_FILES[$file_key];
+
+    // ✅ ALLOWED TYPES (JPG + PNG ONLY)
+    $allowed_types = ['image/jpeg', 'image/png'];
+    $allowed_ext = ['jpg', 'jpeg', 'png'];
+
+    $max_size = 5 * 1024 * 1024; // 5MB
+
+    // ✅ VALIDATE MIME TYPE
+    if (!in_array($file['type'], $allowed_types)) {
+        $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' must be JPG or PNG only.';
+        return null;
+    }
+
+    // ✅ VALIDATE EXTENSION (extra security)
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowed_ext)) {
+        $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' must be JPG or PNG only.';
+        return null;
+    }
+
+    // ✅ SIZE CHECK
+    if ($file['size'] > $max_size) {
+        $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' must be less than 5MB.';
+        return null;
+    }
+
+    // ✅ GENERATE UNIQUE NAME
+    $filename = $prefix . '_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+    $filepath = $upload_dir . $filename;
+
+    // ✅ MOVE FILE
+    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+        return $filename;
+    } else {
+        $errors[] = 'Failed to upload ' . str_replace('_', ' ', $file_key) . '.';
+        return null;
+    }
+}
 
     if (empty($errors)) {
         $proof_billing_path = uploadFile('proof_billing', 'billing');
@@ -158,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $success = "Registration submitted. Waiting for admin approval.";
         } catch (PDOException $e) {
-            $errors[] = 'Registration failed. Please try again later.';
+            die("DB ERROR: " . $e->getMessage());
         }
     }
 }
@@ -183,10 +202,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="error-box">
     <?php foreach ($errors as $e) echo "<p>$e</p>"; ?>
 </div>
-<?php endif; ?>
-
-<?php if ($success): ?>
-<div class="success-box"><?php echo $success; ?></div>
 <?php endif; ?>
 
 <form method="POST" enctype="multipart/form-data">
@@ -269,13 +284,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <h3>Step 3: Verification</h3>
 
 <label>Proof of Billing</label>
-<input type="file" name="proof_billing" required>
+<input type="file" name="proof_billing" accept="image/png, image/jpeg" required>
 
 <label>Valid ID</label>
-<input type="file" name="valid_id" required>
+<input type="file" name="valid_id" accept="image/png, image/jpeg" required>
 
 <label>COE</label>
-<input type="file" name="coe" required>
+<input type="file" name="coe" accept="image/png, image/jpeg" required>
 
 <div class="btn-group">
     <button type="button" class="btn-secondary" onclick="prevStep(2)">Back</button>
@@ -337,6 +352,10 @@ function confirmCancel() {
     window.location.href = 'login.php';
 }
 
+function goToLogin() {
+    window.location.href = 'login.php';
+}
+
 </script>
 
 <div class="modal-overlay" id="cancelModal">
@@ -350,6 +369,27 @@ function confirmCancel() {
         </div>
     </div>
 </div>
+
+<!-- SUCCESS MODAL -->
+<div class="modal-overlay" id="successModal">
+    <div class="modal-box success-modal-box">
+        <h3>Registration Successful</h3>
+        <p>Registration submitted. Waiting for admin approval.</p>
+
+        <div class="modal-actions">
+            <button class="btn-next" onclick="goToLogin()">OK</button>
+        </div>
+    </div>
+</div>
+
+
+<?php if ($success): ?>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('successModal').classList.add('active');
+    });
+</script>
+<?php endif; ?>
 
 </body>
 </html>
