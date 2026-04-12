@@ -1,89 +1,133 @@
-body {
+/* =========================
+   GLOBAL RESET + BASE
+========================= */
+* {
     margin: 0;
-    font-family: Arial;
-    background: #0a0f1c;
-    color: white;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* LAYOUT */
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0a0f1c;
+    color: #e5e7eb;
+}
+
+/* =========================
+   LAYOUT
+========================= */
 .container {
     display: flex;
 }
 
-/* SIDEBAR */
+.main {
+    margin-left: 240px;
+    padding: 30px;
+    width: calc(100% - 240px);
+}
+
+/* =========================
+   SIDEBAR
+========================= */
 .sidebar {
-    width: 230px;
+    width: 240px;
     height: 100vh;
     background: #0f1f3d;
-    padding: 20px;
+    padding: 25px 20px;
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .sidebar h2 {
+    font-size: 22px;
     margin-bottom: 30px;
 }
 
 .sidebar a {
     display: block;
-    color: white;
+    color: #cbd5f5;
     text-decoration: none;
-    margin: 15px 0;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: 0.2s ease;
 }
 
-.sidebar a:hover {
-    background: #1d4ed8;
-}
-
-/* MAIN */
-.main {
-    flex: 1;
-    padding: 30px;
-}
-
-/* CHAT STYLE CARD */
-.chat-box {
-    max-width: 600px;
-}
-
-.bubble {
-    background: #1e3a8a;
-    padding: 15px;
-    border-radius: 15px;
-    margin-bottom: 15px;
-    width: fit-content;
-}
-
-.bubble.right {
-    margin-left: auto;
+.sidebar a:hover,
+.sidebar a.active {
     background: #2563eb;
+    color: white;
 }
 
-/* CARD */
+/* LOGOUT */
+.logout a {
+    background: #dc2626;
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 500;
+}
+
+.logout a:hover {
+    background: #b91c1c;
+}
+
+/* =========================
+   HEADINGS
+========================= */
+h2 {
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+h3 {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+/* =========================
+   CARD SYSTEM
+========================= */
 .card {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
     padding: 20px;
-    border-radius: 12px;
     margin-top: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
 }
 
-/* CARD GRID */
+/* FLEX GRID FIX (IMPORTANT FOR PROFILE PAGE) */
 .cards {
     display: flex;
     gap: 20px;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: stretch; /* FIX ALIGNMENT */
 }
 
+/* =========================
+   TOP STAT CARDS
+========================= */
 .card-box {
     flex: 1;
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    min-width: 220px;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 16px;
     text-align: center;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    box-shadow: 0 10px 25px rgba(37,99,235,0.25);
+    transition: 0.3s;
 }
 
 .card-box h3 {
+    font-size: 16px;
     margin-bottom: 10px;
+    color: #cbd5f5;
 }
 
 .card-box p {
@@ -91,74 +135,145 @@ body {
     font-weight: bold;
 }
 
-/* CARD */
-.card {
-    background: rgba(255,255,255,0.05);
-    padding: 20px;
-    border-radius: 12px;
-    margin-top: 20px;
+.card-box:hover {
+    transform: translateY(-5px);
 }
 
-/* INPUT */
-input, select {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    background: #0f2a52;
-    border: none;
-    color: white;
-    border-radius: 5px;
-}
-
-/* BUTTON */
-button {
-    background: #2563eb;
-    color: white;
-    padding: 10px;
-    border: none;
-    width: 100%;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-/* TABLE */
+/* =========================
+   TABLE DESIGN
+========================= */
 table {
     width: 100%;
     border-collapse: collapse;
+    margin-top: 10px;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
-td, th {
-    padding: 10px;
-    border-bottom: 1px solid #333;
+th {
+    text-align: left;
+    padding: 14px;
+    font-size: 14px;
+    background: rgba(255,255,255,0.08);
 }
 
-/* SIDEBAR FLEX FIX */
-.sidebar {
-    width: 230px;
-    height: 100vh;
-    background: #0f1f3d;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* 🔥 pushes logout to bottom */
+td {
+    padding: 14px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* LOGOUT BUTTON */
-.logout a {
+tr:hover td {
+    background: rgba(255,255,255,0.04);
+}
+
+/* =========================
+   FORM ELEMENTS
+========================= */
+label {
+    font-size: 14px;
     display: block;
-    background: #dc2626;
+    margin-top: 10px;
+    color: #cbd5f5;
+}
+
+input,
+select {
+    width: 100%;
     padding: 12px;
-    text-align: center;
-    border-radius: 8px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(15, 42, 82, 0.6);
     color: white;
-    text-decoration: none;
+    font-size: 14px;
+    outline: none;
 }
 
-.logout a:hover {
-    background: #b91c1c;
+input:focus,
+select:focus {
+    border: 1px solid #2563eb;
 }
 
-/* STATUS */
-.pending { color: orange; }
-.approved { color: #3ddc84; }
-.rejected { color: red; }
+/* =========================
+   BUTTON
+========================= */
+button {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    color: white;
+    padding: 12px;
+    border: none;
+    width: 100%;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+}
+
+/* =========================
+   STATUS COLORS
+========================= */
+.pending {
+    color: #facc15;
+    font-weight: 500;
+}
+
+.approved {
+    color: #4ade80;
+    font-weight: 500;
+}
+
+.rejected {
+    color: #f87171;
+    font-weight: 500;
+}
+
+/* =========================
+   SUCCESS MESSAGE
+========================= */
+.success {
+    background: rgba(22,163,74,0.2);
+    border: 1px solid rgba(22,163,74,0.5);
+    padding: 12px;
+    border-radius: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+/* =========================
+   RESPONSIVE (IMPORTANT)
+========================= */
+@media (max-width: 900px) {
+
+    .sidebar {
+        width: 200px;
+    }
+
+    .main {
+        margin-left: 200px;
+        width: calc(100% - 200px);
+    }
+
+    .cards {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .sidebar {
+        display: none;
+    }
+
+    .main {
+        margin-left: 0;
+        width: 100%;
+        padding: 20px;
+    }
+}

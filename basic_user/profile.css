@@ -1,0 +1,66 @@
+body {
+    margin: 0;
+    font-family: Arial;
+    background: #0f172a;
+    color: white;
+}
+
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    background: #020617;
+    position: fixed;
+    padding: 20px;
+}
+
+.sidebar a {
+    display: block;
+    color: #94a3b8;
+    margin: 15px 0;
+    text-decoration: none;
+}
+
+.sidebar a.active {
+    color: #3b82f6;
+}
+
+.logout {
+    position: absolute;
+    bottom: 20px;
+}
+
+.main {
+    margin-left: 240px;
+    padding: 30px;
+}
+
+.card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    background: #0f172a;
+    border: none;
+    color: white;
+}
+
+.btn-save {
+    padding: 15px;
+    width: 100%;
+    background: #2563eb;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+.success {
+    background: green;
+    padding: 10px;
+    margin-bottom: 10px;
+}
