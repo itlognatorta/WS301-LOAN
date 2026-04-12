@@ -5,7 +5,7 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/../db_connect_new.php';
 require_once __DIR__ . '/../includes/config.php';
 
 $total_users = 0;

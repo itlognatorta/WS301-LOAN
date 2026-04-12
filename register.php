@@ -10,12 +10,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // STEP 1: PERSONAL
     // =========================
     $account_type = $_POST['account_type'] ?? '';
+    $username = trim($_POST['username'] ?? '');
     $name = trim($_POST['name'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $gender = $_POST['gender'] ?? '';
     $birthday = $_POST['birthday'] ?? '';
     $email = trim($_POST['email'] ?? '');
-    $contact = trim($_POST['contact'] ?? '');
+    $phone = trim($_POST['contact'] ?? '');
     $password = $_POST['password'] ?? '';
 
     // =========================
@@ -23,32 +24,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // =========================
     $bank_name = trim($_POST['bank_name'] ?? '');
     $bank_account = trim($_POST['bank_account'] ?? '');
-    $card_name = trim($_POST['card_name'] ?? '');
+    $account_holder = trim($_POST['card_name'] ?? '');
     $tin = trim($_POST['tin'] ?? '');
 
     $company_name = trim($_POST['company_name'] ?? '');
     $company_address = trim($_POST['company_address'] ?? '');
     $company_phone = trim($_POST['company_phone'] ?? '');
     $position = trim($_POST['position'] ?? '');
-    $salary = trim($_POST['salary'] ?? '');
+    $monthly_earnings = floatval($_POST['salary'] ?? 0);
+
+    $age = 0;
+    if ($birthday) {
+        $birthDate = DateTime::createFromFormat('Y-m-d', $birthday);
+        if ($birthDate) {
+            $age = $birthDate->diff(new DateTime('today'))->y;
+        }
+    }
 
     // =========================
     // VALIDATIONS
     // =========================
 
     if (!$account_type) $errors[] = "Account type is required.";
+    if (!$username) $errors[] = "Username is required.";
     if (!$name) $errors[] = "Name is required.";
     if (!$address) $errors[] = "Address is required.";
     if (!$birthday) $errors[] = "Birthday is required.";
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email.";
 
-    if (!preg_match('/^09\d{9}$/', $contact)) {
+    if (!preg_match('/^09\d{9}$/', $phone)) {
         $errors[] = "Invalid PH contact number.";
     }
 
     if (!$password) $errors[] = "Password is required.";
 
-    if (!$bank_name || !$bank_account || !$card_name) {
+    if (!$bank_name || !$bank_account || !$account_holder) {
         $errors[] = "Bank details are required.";
     }
 
@@ -56,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$company_name || !$company_phone) {
         $errors[] = "Company details are required.";
+    }
+
+    if (!$dbConnected || !$pdo) {
+        $errors[] = 'Database connection failed. Please contact the administrator.';
     }
 
     // =========================
@@ -71,27 +85,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // =========================
+    // HANDLE FILE UPLOADS
+    // =========================
+    $proof_billing_path = null;
+    $valid_id_path = null;
+    $coe_path = null;
+
+    $upload_dir = __DIR__ . '/uploads/';
+
+    function uploadFile($file_key, $prefix) {
+        global $errors, $upload_dir;
+
+        if (!isset($_FILES[$file_key]) || $_FILES[$file_key]['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $file = $_FILES[$file_key];
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+        $max_size = 5 * 1024 * 1024; // 5MB
+
+        if (!in_array($file['type'], $allowed_types)) {
+            $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' must be an image or PDF.';
+            return null;
+        }
+
+        if ($file['size'] > $max_size) {
+            $errors[] = ucfirst(str_replace('_', ' ', $file_key)) . ' file size must be less than 5MB.';
+            return null;
+        }
+
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = $prefix . '_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+        $filepath = $upload_dir . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $filepath)) {
+            return $filename;
+        } else {
+            $errors[] = 'Failed to upload ' . str_replace('_', ' ', $file_key) . '.';
+            return null;
+        }
+    }
+
+    if (empty($errors)) {
+        $proof_billing_path = uploadFile('proof_billing', 'billing');
+        $valid_id_path = uploadFile('valid_id', 'id');
+        $coe_path = uploadFile('coe', 'coe');
+    }
+
+    // =========================
     // INSERT
     // =========================
     if (empty($errors)) {
 
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-        $stmt = $pdo->prepare("
-            INSERT INTO users 
-            (account_type, name, address, gender, birthday, email, contact, password_hash,
-             bank_name, bank_account, card_name, tin,
-             company_name, company_address, company_phone, position, salary, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'pending')
-        ");
+        try {
+            $stmt = $pdo->prepare(
+                "INSERT INTO users
+                (username, email, password_hash, account_type, name, address, gender, birthday, age, phone,
+                 bank_name, bank_account, account_holder, tin,
+                 company_name, company_address, company_phone, position, monthly_earnings,
+                 proof_billing_path, valid_id_path, coe_path, status)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'pending')"
+            );
 
-        $stmt->execute([
-            $account_type, $name, $address, $gender, $birthday, $email, $contact, $password_hash,
-            $bank_name, $bank_account, $card_name, $tin,
-            $company_name, $company_address, $company_phone, $position, $salary
-        ]);
+            $stmt->execute([
+                $username, $email, $password_hash, $account_type, $name, $address, $gender, $birthday, $age, $phone,
+                $bank_name, $bank_account, $account_holder, $tin,
+                $company_name, $company_address, $company_phone, $position, $monthly_earnings,
+                $proof_billing_path, $valid_id_path, $coe_path
+            ]);
 
-        $success = "Registration submitted. Waiting for admin approval.";
+            $success = "Registration submitted. Waiting for admin approval.";
+        } catch (PDOException $e) {
+            $errors[] = 'Registration failed. Please try again later.';
+        }
     }
 }
 ?>
@@ -201,13 +269,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <h3>Step 3: Verification</h3>
 
 <label>Proof of Billing</label>
-<input type="file" required>
+<input type="file" name="proof_billing" required>
 
 <label>Valid ID</label>
-<input type="file" required>
+<input type="file" name="valid_id" required>
 
 <label>COE</label>
-<input type="file" required>
+<input type="file" name="coe" required>
 
 <div class="btn-group">
     <button type="button" class="btn-secondary" onclick="prevStep(2)">Back</button>
