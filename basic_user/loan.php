@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once __DIR__ . '/../db_connect_new.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -8,12 +9,29 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-$transactions = $pdo->prepare("
-    SELECT * FROM loan_transactions 
-    WHERE user_id=? 
+/* ================= MAX LOAN LIMIT ================= */
+$maxLoan = 10000;
+
+/* ================= USED LOAN ================= */
+$stmt = $pdo->prepare("
+    SELECT SUM(amount)
+    FROM loan_transactions
+    WHERE user_id = ? AND status = 'approved'
+");
+$stmt->execute([$user_id]);
+$usedLoan = (float) ($stmt->fetchColumn() ?? 0);
+
+$remainingLoan = $maxLoan - $usedLoan;
+if ($remainingLoan < 0) $remainingLoan = 0;
+
+/* ================= TRANSACTIONS ================= */
+$stmt = $pdo->prepare("
+    SELECT * FROM loan_transactions
+    WHERE user_id=?
     ORDER BY no DESC
 ");
-$transactions->execute([$user_id]);
+$stmt->execute([$user_id]);
+$transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -21,65 +39,149 @@ $transactions->execute([$user_id]);
 <head>
 <title>Loan</title>
 <link rel="stylesheet" href="dashboard.css">
+
+<script>
+window.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("loanForm");
+
+    form.addEventListener("submit", function(e) {
+        e.preventDefault();
+        document.getElementById("confirmModal").classList.add("active");
+    });
+});
+
+function closeConfirm() {
+    document.getElementById("confirmModal").classList.remove("active");
+}
+
+function submitLoan() {
+    document.getElementById("confirmModal").classList.remove("active");
+    document.getElementById("successModal").classList.add("active");
+}
+
+function closeSuccess() {
+    document.getElementById("successModal").classList.remove("active");
+}
+
+function finalSubmit() {
+    document.getElementById("successModal").classList.remove("active");
+    document.getElementById("loanForm").submit();
+}
+</script>
+
 </head>
 
 <body>
 
 <div class="container">
-
 <?php include 'sidebar.php'; ?>
 
 <div class="main">
 
-<h2>Apply Loan</h2>
+<h2>Loan Dashboard</h2>
 
-<form action="process_loan.php" method="POST" class="card">
-<input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
+<!-- ================= CARDS ================= -->
+<div class="cards">
 
-<label>Amount</label>
-<input type="number" name="amount" min="5000" max="10000" required>
+    <div class="card-box">
+        <h3>Maximum Loan</h3>
+        <p>₱ <?= number_format($maxLoan, 2) ?></p>
+    </div>
 
-<label>Months</label>
-<select name="months" required>
-<option value="1">1 Month</option>
-<option value="3">3 Months</option>
-<option value="6">6 Months</option>
-<option value="12">12 Months</option>
-</select>
+    <div class="card-box">
+        <h3>Remaining Loan</h3>
+        <p>₱ <?= number_format($remainingLoan, 2) ?></p>
+    </div>
 
-<button type="submit">Apply</button>
+    <div class="card-box">
+        <h3>Used Loan</h3>
+        <p>₱ <?= number_format($usedLoan, 2) ?></p>
+    </div>
+
+</div>
+
+<!-- ================= LOAN FORM ================= -->
+<form action="loan.php" method="POST" class="card" id="loanForm">
+
+    <label>Amount</label>
+    <input type="number"
+           name="amount"
+           min="5000"
+           max="<?= $remainingLoan ?>"
+           required>
+
+    <label>Tenure (Months)</label>
+    <select name="tenure_months" required>
+        <option value="1">1 Month</option>
+        <option value="3">3 Months</option>
+        <option value="6">6 Months</option>
+        <option value="12">12 Months</option>
+        <option value="24">24 Months</option>
+        <option value="32">32 Months</option>
+    </select>
+
+    <button type="submit">Apply Loan</button>
 </form>
 
+<!-- ================= TRANSACTIONS ================= -->
 <h2>Transactions</h2>
 
 <div class="card">
 <table>
 <tr>
-<th>ID</th>
-<th>Amount</th>
-<th>Months</th>
-<th>Status</th>
+    <th>ID</th>
+    <th>Amount</th>
+    <th>Months</th>
+    <th>Status</th>
 </tr>
 
-<?php if($transactions->rowCount() > 0): ?>
-<?php foreach($transactions as $t): ?>
-<tr>
-<td><?php echo $t['no']; ?></td>
-<td>₱<?php echo $t['amount']; ?></td>
-<td><?php echo $t['months']; ?></td>
-<td class="<?php echo strtolower($t['status']); ?>">
-<?php echo $t['status']; ?>
-</td>
-</tr>
-<?php endforeach; ?>
+<?php if(!empty($transactions)): ?>
+    <?php foreach($transactions as $t): ?>
+        <tr>
+            <td><?= $t['no'] ?></td>
+            <td>₱ <?= number_format($t['amount'], 2) ?></td>
+            <td><?= $t['tenure_months'] ?></td>
+            <td class="<?= strtolower($t['status']) ?>">
+                <?= $t['status'] ?>
+            </td>
+        </tr>
+    <?php endforeach; ?>
 <?php else: ?>
-<tr><td colspan="4">No transactions</td></tr>
+<tr>
+    <td colspan="4">No transactions</td>
+</tr>
 <?php endif; ?>
 
 </table>
 </div>
 
 </div>
+</div>
+
+<!-- ================= CONFIRM MODAL ================= -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <h3>Confirm Loan</h3>
+        <p>Are you sure you want to loan with this amount?</p>
+
+        <div class="modal-actions">
+            <button class="btn-back" onclick="closeConfirm()">No</button>
+            <button class="btn-next" onclick="submitLoan()">Yes</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= SUCCESS MODAL ================= -->
+<div class="modal-overlay" id="successModal">
+    <div class="modal-box">
+        <h3>Success</h3>
+        <p>Apply Loan Successfully, wait for the admin to confirm application.</p>
+
+        <div class="modal-actions">
+            <button class="btn-next" onclick="finalSubmit()">OK</button>
+        </div>
+    </div>
 </div>
 
 </body>

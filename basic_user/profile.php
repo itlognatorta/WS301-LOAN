@@ -72,7 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user_id
     ]);
 
-    $success = "Profile Updated Successfully!";
+    // ✅ REDIRECT (THIS FIXES CONFIRM RESUBMISSION)
+    header("Location: profile.php?updated=1");
+    exit;
+
+    $updated = isset($_GET['updated']);
 }
 ?>
 
@@ -100,22 +104,44 @@ function calcAge() {
     document.getElementById("age").value = age;
 }
 
-/* ================= CONFIRM UPDATE ================= */
-function confirmUpdate(event) {
-    event.preventDefault();
+/* ================= MODAL CONTROL ================= */
+window.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("profileForm");
 
-    if (confirm("Are you sure you want to update profile?")) {
-        alert("Updated Successfully");
-        event.target.submit();
-    } else {
-        alert("Update profile cancelled");
-    }
+    form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    document.getElementById("confirmModal").classList.add("active");
+});
+});
+
+/* CLOSE CONFIRM */
+function closeConfirm() {
+    document.getElementById("confirmModal").classList.remove("active");
+}
+
+/* SUBMIT FORM */
+function submitProfile() {
+    document.getElementById("confirmModal").classList.remove("active");
+    document.getElementById("profileForm").submit();
+}
+
+/* CLOSE SUCCESS */
+function closeSuccess() {
+    document.getElementById("successModal").classList.remove("active");
 }
 </script>
 
 </head>
 
 <body>
+
+<?php if (isset($_GET['updated'])): ?>
+<script>
+window.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("successModal").classList.add("active");
+});
+</script>
+<?php endif; ?>
 
 <div class="container">
 <?php include 'sidebar.php'; ?>
@@ -142,26 +168,20 @@ function confirmUpdate(event) {
     </div>
 </div>
 
-<?php if ($success): ?>
-<div class="success"><?= $success ?></div>
-<?php endif; ?>
-
 <!-- ================= FORM ================= -->
-<form method="POST" onsubmit="confirmUpdate(event)">
+<form method="POST" id="profileForm">
 
 <div class="cards">
 
-<!-- ================= PERSONAL DETAILS ================= -->
+<!-- PERSONAL -->
 <div class="card" style="flex:1;">
 <h3>Personal Details</h3>
 
 <label>Name *</label>
-<input type="text" name="name"
-value="<?= htmlspecialchars($user['name'] ?? '') ?>" required>
+<input type="text" name="name" value="<?= htmlspecialchars($user['name'] ?? '') ?>" required>
 
 <label>Address *</label>
-<input type="text" name="address"
-value="<?= htmlspecialchars($user['address'] ?? '') ?>" required>
+<input type="text" name="address" value="<?= htmlspecialchars($user['address'] ?? '') ?>" required>
 
 <label>Gender</label>
 <select name="gender">
@@ -179,8 +199,7 @@ onchange="calcAge()" required>
 value="<?= isset($user['birthday']) ? date_diff(date_create($user['birthday']), date_create('today'))->y : '' ?>">
 
 <label>Email *</label>
-<input type="email" name="email"
-value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
+<input type="email" name="email" value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
 
 <label>Phone Number *</label>
 <input type="text" name="phone"
@@ -191,70 +210,47 @@ required>
 
 </div>
 
-<!-- ================= BANK DETAILS ================= -->
+<!-- BANK -->
 <div class="card" style="flex:1;">
-
 <h3>Bank Details</h3>
 
 <label>Bank Name *</label>
-<input type="text" name="bank_name"
-value="<?= htmlspecialchars($user['bank_name'] ?? '') ?>" required>
+<input type="text" name="bank_name" value="<?= htmlspecialchars($user['bank_name'] ?? '') ?>" required>
 
 <label>Bank Account Number *</label>
-<input type="text" name="bank_account"
-value="<?= htmlspecialchars($user['bank_account'] ?? '') ?>" required>
+<input type="text" name="bank_account" value="<?= htmlspecialchars($user['bank_account'] ?? '') ?>" required>
 
 <label>Account Holder's Name *</label>
-<input type="text" name="account_holder"
-value="<?= htmlspecialchars($user['account_holder'] ?? '') ?>" required>
+<input type="text" name="account_holder" value="<?= htmlspecialchars($user['account_holder'] ?? '') ?>" required>
 
-<p style="color:orange; font-size:13px;">
-⚠ Make sure account holder's name is correct to avoid transaction issues.
-</p>
+<p style="color:orange;font-size:13px;">⚠ Make sure account holder's name is correct.</p>
 
 <label>TIN Number *</label>
-<input type="text" name="tin"
-value="<?= htmlspecialchars($user['tin'] ?? '') ?>" required>
+<input type="text" name="tin" value="<?= htmlspecialchars($user['tin'] ?? '') ?>" required>
 
 <label>Company Name</label>
-<input type="text" name="company_name"
-value="<?= htmlspecialchars($user['company_name'] ?? '') ?>">
+<input type="text" name="company_name" value="<?= htmlspecialchars($user['company_name'] ?? '') ?>">
 
 <label>Company Address</label>
-<input type="text" name="company_address"
-value="<?= htmlspecialchars($user['company_address'] ?? '') ?>">
+<input type="text" name="company_address" value="<?= htmlspecialchars($user['company_address'] ?? '') ?>">
 
 <label>Company Phone Number</label>
-<input type="text" name="company_phone"
-value="<?= htmlspecialchars($user['company_phone'] ?? '') ?>">
-
-<p style="color:orange; font-size:13px;">
-⚠ Please provide HR contact number for employment confirmation.
-</p>
+<input type="text" name="company_phone" value="<?= htmlspecialchars($user['company_phone'] ?? '') ?>">
 
 <label>Position</label>
-<input type="text" name="position"
-value="<?= htmlspecialchars($user['position'] ?? '') ?>">
+<input type="text" name="position" value="<?= htmlspecialchars($user['position'] ?? '') ?>">
 
 <label>Monthly Earnings</label>
-<input type="number" name="monthly_earnings"
-value="<?= htmlspecialchars($user['monthly_earnings'] ?? '') ?>">
+<input type="number" name="monthly_earnings" value="<?= htmlspecialchars($user['monthly_earnings'] ?? '') ?>">
 
 </div>
 
-<!-- ================= UPLOADS ================= -->
+<!-- UPLOAD -->
 <div class="card" style="flex:1;">
 <h3>Uploads</h3>
-
-<label>Proof of Billing *</label>
 <input type="file">
-
-<label>Valid ID *</label>
 <input type="file">
-
-<label>COE *</label>
 <input type="file">
-
 </div>
 
 </div>
@@ -263,8 +259,30 @@ value="<?= htmlspecialchars($user['monthly_earnings'] ?? '') ?>">
 
 </form>
 
-
 </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <h3>Update Profile?</h3>
+        <p>Are you sure you want to update your profile?</p>
+        <div class="modal-actions">
+            <button class="btn-back" onclick="closeConfirm()">No</button>
+            <button class="btn-next" onclick="submitProfile()">Yes</button>
+        </div>
+    </div>
+</div>
+
+<!-- SUCCESS MODAL -->
+<div class="modal-overlay" id="successModal">
+    <div class="modal-box">
+        <h3>Success</h3>
+        <p>Profile Updated Successfully!</p>
+        <div class="modal-actions">
+            <button class="btn-next" onclick="closeSuccess()">OK</button>
+        </div>
+    </div>
 </div>
 
 </body>
