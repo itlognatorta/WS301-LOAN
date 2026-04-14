@@ -32,7 +32,7 @@ $transactions->execute([$user_id]);
 <html>
 <head>
 <title>Dashboard</title>
-<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="premiumdb.css">
 </head>
 <body>
 

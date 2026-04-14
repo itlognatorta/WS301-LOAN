@@ -23,7 +23,7 @@ if($count > 0){
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="premiumdb.css">
 </head>
 <body>
 

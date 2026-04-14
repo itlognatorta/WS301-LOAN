@@ -37,7 +37,7 @@ $transactions->execute([$user_id]);
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="premiumdb.css">
 </head>
 <body>
 

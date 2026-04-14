@@ -1,57 +1,253 @@
-body {
-    font-family: Arial;
+/* =========================
+   GLOBAL RESET + BASE
+========================= */
+* {
     margin: 0;
-    background: #f4f6f9;
+    padding: 0;
+    box-sizing: border-box;
 }
 
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0a0f1c;
+    color: #e5e7eb;
+}
+
+/* =========================
+   LAYOUT
+========================= */
 .container {
     display: flex;
 }
 
-.sidebar {
-    width: 220px;
-    background: #2c3e50;
-    color: #fff;
-    height: 100vh;
-    padding: 20px;
+.main {
+    margin-left: 240px;
+    padding: 30px;
+    width: calc(100% - 240px);
 }
 
+/* =========================
+   SIDEBAR
+========================= */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    background: linear-gradient(180deg, #0f1f3d, #0b1328);
+    padding: 25px 20px;
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* 🔥 PREMIUM TITLE */
+.sidebar h2 {
+    font-size: 22px;
+    margin-bottom: 30px;
+    color: gold;
+}
+
+/* NAV LINKS */
 .sidebar a {
     display: block;
-    color: white;
+    color: #cbd5f5;
     text-decoration: none;
-    margin: 10px 0;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: 0.2s ease;
 }
 
-.main {
-    flex: 1;
+.sidebar a:hover,
+.sidebar a.active {
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    color: black;
+}
+
+/* LOGOUT */
+.logout a {
+    background: #dc2626;
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 500;
+}
+
+.logout a:hover {
+    background: #b91c1c;
+}
+
+/* =========================
+   HEADINGS
+========================= */
+h2 {
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+/* ⭐ PREMIUM LABEL */
+h2::after {
+    content: " PREMIUM";
+    color: gold;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+/* =========================
+   CARD SYSTEM
+========================= */
+.card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
     padding: 20px;
+    margin-top: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
 }
 
+/* FLEX GRID */
 .cards {
     display: flex;
     gap: 20px;
+    flex-wrap: wrap;
 }
 
+/* =========================
+   PREMIUM CARD BOX
+========================= */
 .card-box {
-    background: white;
-    padding: 20px;
     flex: 1;
-    border-radius: 8px;
-}
-
-.card {
-    margin-top: 20px;
-    background: white;
+    min-width: 220px;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 16px;
+    text-align: center;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    box-shadow: 0 10px 25px rgba(37,99,235,0.25);
+    transition: 0.3s;
 }
 
+/* 🔥 GOLD HOVER EFFECT */
+.card-box:hover {
+    transform: translateY(-5px);
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    color: black;
+}
+
+/* =========================
+   TABLE DESIGN
+========================= */
 table {
     width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
-.pending {color: orange;}
-.completed {color: green;}
-.failed {color: red;}
-.rejected {color: red;}
+th {
+    text-align: left;
+    padding: 14px;
+    font-size: 14px;
+    background: rgba(255,255,255,0.08);
+}
+
+td {
+    padding: 14px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+tr:hover td {
+    background: rgba(255,255,255,0.04);
+}
+
+/* =========================
+   FORM ELEMENTS
+========================= */
+label {
+    font-size: 14px;
+    display: block;
+    margin-top: 10px;
+    color: #cbd5f5;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 12px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(15, 42, 82, 0.6);
+    color: white;
+    font-size: 14px;
+    outline: none;
+}
+
+input:focus,
+select:focus {
+    border: 1px solid gold;
+}
+
+/* =========================
+   BUTTON
+========================= */
+button {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    color: black;
+    padding: 12px;
+    border: none;
+    width: 100%;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+}
+
+/* =========================
+   STATUS COLORS
+========================= */
+.pending { color: #facc15; }
+.approved { color: #4ade80; }
+.rejected { color: #f87171; }
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 900px) {
+
+    .sidebar {
+        width: 200px;
+    }
+
+    .main {
+        margin-left: 200px;
+        width: calc(100% - 200px);
+    }
+
+    .cards {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .sidebar {
+        display: none;
+    }
+
+    .main {
+        margin-left: 0;
+        width: 100%;
+        padding: 20px;
+    }
+}
