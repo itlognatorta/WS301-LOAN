@@ -89,7 +89,7 @@ $totalLoan = $totalLoan->fetchColumn() ?? 0;
 <tr>
 <td><?php echo $t['no']; ?></td>
 <td>₱<?php echo $t['amount']; ?></td>
-<td><?php echo $t['months']; ?></td>
+<td><?php echo $t['tenure_months']; ?></td>
 <td class="<?php echo strtolower($t['status']); ?>">
 <?php echo $t['status']; ?>
 </td>

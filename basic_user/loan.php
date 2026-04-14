@@ -24,6 +24,29 @@ $usedLoan = (float) ($stmt->fetchColumn() ?? 0);
 $remainingLoan = $maxLoan - $usedLoan;
 if ($remainingLoan < 0) $remainingLoan = 0;
 
+/* ================= APPLY LOAN ================= */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $amount = (float) ($_POST['amount'] ?? 0);
+    $months = (int) ($_POST['tenure_months'] ?? 0);
+
+    // VALIDATION
+    if ($amount >= 5000 && $amount <= $remainingLoan && $months > 0) {
+
+        $stmt = $pdo->prepare("
+            INSERT INTO loan_transactions 
+            (user_id, amount, tenure_months, status, created_at)
+            VALUES (?, ?, ?, 'pending', NOW())
+        ");
+
+        $stmt->execute([$user_id, $amount, $months]);
+
+        // Refresh to show new data
+        header("Location: loan.php");
+        exit;
+    }
+}
+
 /* ================= TRANSACTIONS ================= */
 $stmt = $pdo->prepare("
     SELECT * FROM loan_transactions
