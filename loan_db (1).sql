@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 12, 2026 at 05:58 AM
+-- Generation Time: Apr 14, 2026 at 09:21 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -150,7 +150,9 @@ CREATE TABLE `loan_requests` (
 --
 
 INSERT INTO `loan_requests` (`id`, `user_id`, `amount`, `tenure_months`, `status`, `rejection_reason`, `approved_by`, `approved_at`, `created_at`) VALUES
-(1, 1, 10000.00, 12, 'approved', NULL, 1, NULL, '2026-04-12 02:54:49');
+(1, 1, 10000.00, 12, 'approved', NULL, 1, NULL, '2026-04-12 02:54:49'),
+(2, 2, 5200.00, 1, 'pending', NULL, NULL, NULL, '2026-04-14 07:16:59'),
+(3, 2, 5000.00, 32, 'pending', NULL, NULL, NULL, '2026-04-14 07:17:10');
 
 -- --------------------------------------------------------
 
@@ -175,7 +177,8 @@ CREATE TABLE `loan_transactions` (
 --
 
 INSERT INTO `loan_transactions` (`no`, `tx_id`, `user_id`, `type`, `amount`, `tenure_months`, `status`, `admin_note`, `created_at`) VALUES
-(1, 'LN202604124229', 1, 'apply', 6000.00, 6, 'pending', NULL, '2026-04-12 03:50:26');
+(1, 'LN202604124229', 1, 'apply', 6000.00, 6, 'pending', NULL, '2026-04-12 03:50:26'),
+(2, '', 2, 'apply', 5000.00, 1, 'pending', NULL, '2026-04-14 05:53:23');
 
 -- --------------------------------------------------------
 
@@ -295,7 +298,7 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `account_type`, `name`, `address`, `gender`, `birthday`, `age`, `phone`, `bank_name`, `bank_account`, `account_holder`, `tin`, `company_name`, `company_address`, `company_phone`, `position`, `monthly_earnings`, `proof_billing_path`, `valid_id_path`, `coe_path`, `status`, `verified`, `savings_balance`, `current_loan_amount`, `max_loan_amount`, `max_tenure_months`, `last_savings_activity`, `created_at`, `updated_at`) VALUES
 (1, 'testpremium', 'test@premium.com', '$2y$10$DhQoONm5yRguHzDV3S7BfONHBk7lGFY/8EUKsqvQ/FI6ZEExFlA7G', 'premium', 'Test Premium User', '123 Test St, Manila', 'male', '1990-01-01', 0, '09171234567', 'BPI', '1234567890', 'Test Premium', '123456789', 'Test Corp', '456 Corp St', '028123456', 'Manager', 50000.00, NULL, NULL, NULL, 'active', 1, 1000.00, 0.00, 10000.00, 12, NULL, '2026-04-12 02:54:49', '2026-04-12 03:28:09'),
-(2, 'testbasic', 'test@basic.com', '$2y$10$DhQoONm5yRguHzDV3S7BfONHBk7lGFY/8EUKsqvQ/FI6ZEExFlA7G', 'basic', 'Test Basic User', '789 Test Ave', 'female', '1985-05-15', 0, '09991234567', 'BDO', '0987654321', 'Test Basic', '987654321', 'Basic Inc', '789 Inc Ave', '029876543', 'Staff', 25000.00, NULL, NULL, NULL, 'active', 1, 0.00, 0.00, 10000.00, 12, NULL, '2026-04-12 02:54:49', '2026-04-12 03:28:09');
+(2, 'testbasic', 'test@basic.com', '$2y$10$DhQoONm5yRguHzDV3S7BfONHBk7lGFY/8EUKsqvQ/FI6ZEExFlA7G', 'basic', 'Mark Christian Cañedo', 'Lipata Minglanilla, Cebu', 'male', '1985-05-15', 0, '09223254679', 'BDO', '0987654321', 'Juan Dela Cruz', '987654321', 'Basic Inc', '789 Inc Ave', '029876543', 'Staff', 4000.00, NULL, NULL, NULL, 'active', 1, 0.00, 0.00, 10000.00, 12, NULL, '2026-04-12 02:54:49', '2026-04-14 05:37:48');
 
 --
 -- Indexes for dumped tables
@@ -432,13 +435,13 @@ ALTER TABLE `loans`
 -- AUTO_INCREMENT for table `loan_requests`
 --
 ALTER TABLE `loan_requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `loan_transactions`
 --
 ALTER TABLE `loan_transactions`
-  MODIFY `no` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `no` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `registration_requests`

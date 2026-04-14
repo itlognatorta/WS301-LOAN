@@ -15,7 +15,7 @@ $maxLoan = 10000;
 /* ================= USED LOAN ================= */
 $stmt = $pdo->prepare("
     SELECT SUM(amount)
-    FROM loan_transactions
+    FROM loan_requests
     WHERE user_id = ? AND status = 'approved'
 ");
 $stmt->execute([$user_id]);
@@ -30,28 +30,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $amount = (float) ($_POST['amount'] ?? 0);
     $months = (int) ($_POST['tenure_months'] ?? 0);
 
-    // VALIDATION
     if ($amount >= 5000 && $amount <= $remainingLoan && $months > 0) {
 
-        $stmt = $pdo->prepare("
-            INSERT INTO loan_transactions 
-            (user_id, amount, tenure_months, status, created_at)
-            VALUES (?, ?, ?, 'pending', NOW())
-        ");
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO loan_requests 
+                (user_id, amount, tenure_months, status, created_at)
+                VALUES (?, ?, ?, 'pending', NOW())
+            ");
 
-        $stmt->execute([$user_id, $amount, $months]);
+            $stmt->execute([$user_id, $amount, $months]);
 
-        // Refresh to show new data
-        header("Location: loan.php");
-        exit;
+            header("Location: loan.php");
+            exit;
+
+        } catch (PDOException $e) {
+            die("Database Error: " . $e->getMessage());
+        }
     }
 }
 
 /* ================= TRANSACTIONS ================= */
 $stmt = $pdo->prepare("
-    SELECT * FROM loan_transactions
+    SELECT * FROM loan_requests
     WHERE user_id=?
-    ORDER BY no DESC
+    ORDER BY id DESC
 ");
 $stmt->execute([$user_id]);
 $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -64,29 +67,23 @@ $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <link rel="stylesheet" href="dashboard.css">
 
 <script>
-window.addEventListener("DOMContentLoaded", function () {
+// OPEN CONFIRM MODAL
+function openConfirm() {
+    document.getElementById("confirmModal").classList.add("active");
+}
 
-    const form = document.getElementById("loanForm");
-
-    form.addEventListener("submit", function(e) {
-        e.preventDefault();
-        document.getElementById("confirmModal").classList.add("active");
-    });
-});
-
+// CLOSE CONFIRM MODAL
 function closeConfirm() {
     document.getElementById("confirmModal").classList.remove("active");
 }
 
+// GO TO SUCCESS MODAL
 function submitLoan() {
     document.getElementById("confirmModal").classList.remove("active");
     document.getElementById("successModal").classList.add("active");
 }
 
-function closeSuccess() {
-    document.getElementById("successModal").classList.remove("active");
-}
-
+// FINAL SUBMIT (POST)
 function finalSubmit() {
     document.getElementById("successModal").classList.remove("active");
     document.getElementById("loanForm").submit();
@@ -132,6 +129,7 @@ function finalSubmit() {
            name="amount"
            min="5000"
            max="<?= $remainingLoan ?>"
+           placeholder="₱5,000 - ₱10,000" required>
            required>
 
     <label>Tenure (Months)</label>
@@ -144,7 +142,8 @@ function finalSubmit() {
         <option value="32">32 Months</option>
     </select>
 
-    <button type="submit">Apply Loan</button>
+    <!-- IMPORTANT: type=button -->
+    <button type="button" onclick="openConfirm()">Apply Loan</button>
 </form>
 
 <!-- ================= TRANSACTIONS ================= -->
@@ -162,7 +161,7 @@ function finalSubmit() {
 <?php if(!empty($transactions)): ?>
     <?php foreach($transactions as $t): ?>
         <tr>
-            <td><?= $t['no'] ?></td>
+            <td><?= $t['id'] ?></td>
             <td>₱ <?= number_format($t['amount'], 2) ?></td>
             <td><?= $t['tenure_months'] ?></td>
             <td class="<?= strtolower($t['status']) ?>">
@@ -186,11 +185,11 @@ function finalSubmit() {
 <div class="modal-overlay" id="confirmModal">
     <div class="modal-box">
         <h3>Confirm Loan</h3>
-        <p>Are you sure you want to loan with this amount?</p>
+        <p>Are you sure you want to loan this amount?</p>
 
         <div class="modal-actions">
-            <button class="btn-back" onclick="closeConfirm()">No</button>
-            <button class="btn-next" onclick="submitLoan()">Yes</button>
+            <button onclick="closeConfirm()">No</button>
+            <button onclick="submitLoan()">Yes</button>
         </div>
     </div>
 </div>
@@ -199,10 +198,10 @@ function finalSubmit() {
 <div class="modal-overlay" id="successModal">
     <div class="modal-box">
         <h3>Success</h3>
-        <p>Apply Loan Successfully, wait for the admin to confirm application.</p>
+        <p>Loan submitted. Wait for admin approval.</p>
 
         <div class="modal-actions">
-            <button class="btn-next" onclick="finalSubmit()">OK</button>
+            <button onclick="finalSubmit()">OK</button>
         </div>
     </div>
 </div>
