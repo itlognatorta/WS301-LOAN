@@ -21,6 +21,8 @@ if ($dbConnected && $pdo) {
     $pending_regs = $pdo->query("SELECT COUNT(*) FROM users WHERE status = 'pending'")->fetchColumn();
     $total_loans = $pdo->query("SELECT COUNT(*) FROM loans")->fetchColumn();
     $total_savings = $pdo->query("SELECT SUM(savings_balance) FROM users")->fetchColumn() ?: 0;
+    $total_earnings = $pdo->query("SELECT SUM(interest) FROM loans WHERE status = 'active'")->fetchColumn() ?: 0;
+    $savings_accounts = $pdo->query("SELECT COUNT(*) FROM users WHERE savings_balance > 0")->fetchColumn();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -95,6 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="stat">
                 <h3>PHP <?php echo number_format($total_savings); ?></h3>
                 <p>Total Savings</p>
+            </div>
+            <div class="stat">
+                <h3>PHP <?php echo number_format($total_earnings); ?></h3>
+                <p>Total Earnings</p>
+            </div>
+            <div class="stat">
+                <h3><?php echo $savings_accounts; ?></h3>
+                <p>Savings Accounts</p>
             </div>
         </div>
         <div class="section-card" style="background: rgba(255,255,255,0.08); padding: 30px; border-radius: 20px;">

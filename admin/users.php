@@ -15,13 +15,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'];
 
     if ($action === 'approve') {
-        $stmt = $pdo->prepare("UPDATE users SET status = 'active' WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE users SET status = 'active', verified = 1 WHERE id = ?");
         $stmt->execute([$user_id]);
         $message = 'User approved successfully.';
     } elseif ($action === 'reject') {
+        $reason = $_POST['reason'] ?? '';
         $stmt = $pdo->prepare("UPDATE users SET status = 'disabled' WHERE id = ?");
         $stmt->execute([$user_id]);
+        // TODO: Send email notification
         $message = 'User rejected.';
+    } elseif ($action === 'edit') {
+        $account_type = $_POST['account_type'];
+        $status = $_POST['status'];
+        $stmt = $pdo->prepare("UPDATE users SET account_type = ?, status = ? WHERE id = ?");
+        $stmt->execute([$account_type, $status, $user_id]);
+        $message = 'User updated successfully.';
+    } elseif ($action === 'block_email') {
+        $email = $_POST['email'];
+        $stmt = $pdo->prepare("INSERT INTO blocked_emails (email, blocked_by) VALUES (?, ?) ON DUPLICATE KEY UPDATE blocked_at = CURRENT_TIMESTAMP");
+        $stmt->execute([$email, $_SESSION['admin_id']]);
+        $message = 'Email blocked successfully.';
     }
 }
 
@@ -57,9 +70,10 @@ $all_users = $stmt->fetchAll();
         .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
         .btn-approve { background: #28a745; color: white; }
         .btn-reject { background: #dc3545; color: white; }
-        .btn-view { background: #17a2b8; color: white; }
+        .btn-edit { background: #17a2b8; color: white; }
+        .btn-block { background: #ffc107; color: black; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
-        .modal-content { background: #1a1a2e; margin: 5% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 800px; max-height: 80%; overflow-y: auto; }
+        .modal-content { background: #1a1a2e; margin: 5% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 600px; max-height: 80%; overflow-y: auto; }
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .user-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
         .detail-group { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; }
@@ -120,10 +134,11 @@ $all_users = $stmt->fetchAll();
                             <input type="hidden" name="action" value="approve">
                             <button type="submit" class="btn btn-approve" onclick="return confirm('Approve this user?')">Approve</button>
                         </form>
-                        <form method="POST" style="display: inline;">
+                        <form method="POST" style="display: inline;" onsubmit="return confirmReject()">
                             <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
                             <input type="hidden" name="action" value="reject">
-                            <button type="submit" class="btn btn-reject" onclick="return confirm('Reject this user?')">Reject</button>
+                            <input type="hidden" name="reason" id="rejectReason<?php echo $user['id']; ?>">
+                            <button type="submit" class="btn btn-reject">Reject</button>
                         </form>
                     </td>
                 </tr>
@@ -158,6 +173,8 @@ $all_users = $stmt->fetchAll();
                     <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                     <td>
                         <button class="btn btn-view" onclick="viewUser(<?php echo $user['id']; ?>)">View Details</button>
+                        <button class="btn btn-edit" onclick="editUser(<?php echo $user['id']; ?>, '<?php echo $user['account_type']; ?>', '<?php echo $user['status']; ?>')">Edit</button>
+                        <button class="btn btn-block" onclick="blockEmail('<?php echo $user['email']; ?>')">Block Email</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -172,6 +189,30 @@ $all_users = $stmt->fetchAll();
         <span class="close" onclick="closeModal()">&times;</span>
         <h2>User Details</h2>
         <div id="userDetails"></div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeEditModal()">&times;</span>
+        <h2>Edit User</h2>
+        <form method="POST" id="editForm">
+            <input type="hidden" name="user_id" id="editUserId">
+            <input type="hidden" name="action" value="edit">
+            <label>Account Type:</label>
+            <select name="account_type" id="editAccountType">
+                <option value="basic">Basic</option>
+                <option value="premium">Premium</option>
+            </select>
+            <label>Status:</label>
+            <select name="status" id="editStatus">
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+                <option value="pending">Pending</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Update</button>
+        </form>
     </div>
 </div>
 
@@ -202,11 +243,48 @@ function closeModal() {
     document.getElementById('userModal').style.display = 'none';
 }
 
+function editUser(userId, accountType, status) {
+    document.getElementById('editUserId').value = userId;
+    document.getElementById('editAccountType').value = accountType;
+    document.getElementById('editStatus').value = status;
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function blockEmail(email) {
+    if (confirm(`Block email ${email}?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="action" value="block_email">
+            <input type="hidden" name="email" value="${email}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function confirmReject() {
+    const reason = prompt('Enter rejection reason:');
+    if (reason === null) return false;
+    // Set the reason in the hidden input
+    const form = event.target;
+    form.querySelector('input[name="reason"]').value = reason;
+    return confirm('Reject this user?');
+}
+
 // Close modal when clicking outside
 window.onclick = function(event) {
-    const modal = document.getElementById('userModal');
-    if (event.target == modal) {
-        modal.style.display = 'none';
+    const userModal = document.getElementById('userModal');
+    const editModal = document.getElementById('editModal');
+    if (event.target == userModal) {
+        userModal.style.display = 'none';
+    }
+    if (event.target == editModal) {
+        editModal.style.display = 'none';
     }
 }
 </script>

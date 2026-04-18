@@ -23,6 +23,21 @@ if (!$user) {
     echo 'User not found';
     exit;
 }
+
+// Get user's loans
+$stmt = $pdo->prepare("SELECT * FROM loans WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$loans = $stmt->fetchAll();
+
+// Get user's savings transactions
+$stmt = $pdo->prepare("SELECT * FROM savings_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 10");
+$stmt->execute([$user_id]);
+$savings = $stmt->fetchAll();
+
+// Get user's billing
+$stmt = $pdo->prepare("SELECT * FROM billing WHERE user_id = ? ORDER BY generated_date DESC LIMIT 5");
+$stmt->execute([$user_id]);
+$billing = $stmt->fetchAll();
 ?>
 
 <div class="user-details">
@@ -59,6 +74,101 @@ if (!$user) {
         <p><strong>Company Phone:</strong> <?php echo htmlspecialchars($user['company_phone']); ?></p>
         <p><strong>Position:</strong> <?php echo htmlspecialchars($user['position']); ?></p>
         <p><strong>Monthly Earnings:</strong> ₱<?php echo number_format($user['monthly_earnings'], 2); ?></p>
+    </div>
+
+    <div class="detail-group">
+        <h4>Financial Information</h4>
+        <p><strong>Savings Balance:</strong> ₱<?php echo number_format($user['savings_balance'], 2); ?></p>
+        <p><strong>Current Loan Amount:</strong> ₱<?php echo number_format($user['current_loan_amount'], 2); ?></p>
+        <p><strong>Max Loan Amount:</strong> ₱<?php echo number_format($user['max_loan_amount'], 2); ?></p>
+    </div>
+</div>
+
+<div class="user-details">
+    <div class="detail-group">
+        <h4>Loans</h4>
+        <?php if (empty($loans)): ?>
+        <p>No loans.</p>
+        <?php else: ?>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Principal</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Interest</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Tenure</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($loans as $loan): ?>
+                <tr>
+                    <td style="border: 1px solid #ccc; padding: 5px;">₱<?php echo number_format($loan['principal'], 2); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;">₱<?php echo number_format($loan['interest'], 2); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo $loan['tenure_months']; ?> months</td>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo ucfirst($loan['status']); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+
+    <div class="detail-group">
+        <h4>Recent Savings Transactions</h4>
+        <?php if (empty($savings)): ?>
+        <p>No savings transactions.</p>
+        <?php else: ?>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Type</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Amount</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Balance After</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Status</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($savings as $tx): ?>
+                <tr>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo ucfirst($tx['category']); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;">₱<?php echo number_format($tx['amount'], 2); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;">₱<?php echo number_format($tx['balance_after'] ?? 0, 2); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo ucfirst($tx['status']); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo date('M d, Y', strtotime($tx['created_at'])); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+
+    <div class="detail-group">
+        <h4>Recent Billing</h4>
+        <?php if (empty($billing)): ?>
+        <p>No billing records.</p>
+        <?php else: ?>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Generated</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Due Date</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Total Due</th>
+                    <th style="border: 1px solid #ccc; padding: 5px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($billing as $bill): ?>
+                <tr>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo date('M d, Y', strtotime($bill['generated_date'])); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo date('M d, Y', strtotime($bill['due_date'])); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;">₱<?php echo number_format($bill['total_due'], 2); ?></td>
+                    <td style="border: 1px solid #ccc; padding: 5px;"><?php echo ucfirst($bill['status']); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
     </div>
 </div>
 

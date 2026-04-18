@@ -38,28 +38,6 @@ require_once __DIR__ . '/db_connect_new.php'; // session_start() is inside this 
                 <h1>Make Your Finances <span>Simple & Smart</span></h1>
                 <p>Apply for loans, track repayments, and manage your savings in one modern platform.</p>
 
-                <!-- DB STATUS -->
-                <div class="db-status <?php echo $dbConnected ? 'success' : 'error'; ?>">
-                    <span class="status-dot"></span>
-                    <?php echo $dbConnected ? 'Connected to loan_db' : 'Database connection not available'; ?>
-                </div>
-
-                <!-- SITE STATS -->
-                <div class="stats-row">
-                    <div class="stat-box">
-                        <strong><?php echo number_format($siteStats['users'] ?? 0); ?></strong>
-                        <span>Registered Users</span>
-                    </div>
-                    <div class="stat-box">
-                        <strong><?php echo number_format($siteStats['loans'] ?? 0); ?></strong>
-                        <span>Total Loans</span>
-                    </div>
-                    <div class="stat-box">
-                        <strong><?php echo number_format($siteStats['savings_accounts'] ?? 0); ?></strong>
-                        <span>Savings Accounts</span>
-                    </div>
-                </div>
-
                 <?php if (!$dbConnected && !empty($dbError)): ?>
                     <p class="db-error"><?php echo htmlspecialchars($dbError); ?></p>
                 <?php endif; ?>
