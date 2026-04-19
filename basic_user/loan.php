@@ -16,8 +16,10 @@ $maxLoan = 10000;
 $stmt = $pdo->prepare("
     SELECT SUM(amount)
     FROM loan_requests
-    WHERE user_id = ? AND status = 'approved'
+    WHERE user_id = ? 
+    AND status IN ('pending', 'approved')
 ");
+
 $stmt->execute([$user_id]);
 $usedLoan = (float) ($stmt->fetchColumn() ?? 0);
 
@@ -29,6 +31,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $amount = (float) ($_POST['amount'] ?? 0);
     $months = (int) ($_POST['tenure_months'] ?? 0);
+
+    // 🚨 HARD LIMIT CHECK
+if ($usedLoan >= $maxLoan) {
+    die("Your amount exceeded the maximum loan limit (₱10,000).");
+}
+
+// 🚨 CHECK IF NEW LOAN EXCEEDS LIMIT
+if (($usedLoan + $amount) > $maxLoan) {
+    die("Your requested amount exceeds your remaining loan limit.");
+}
 
     if ($amount >= 5000 && $amount <= $remainingLoan && $months > 0) {
 
@@ -121,6 +133,12 @@ function finalSubmit() {
 
 </div>
 
+<?php if ($remainingLoan <= 0): ?>
+    <div class="success" style="background:#dc2626;">
+        ❌ Your amount exceeded the maximum loan limit (₱10,000). You cannot apply for a new loan.
+    </div>
+<?php endif; ?>
+
 <!-- ================= LOAN FORM ================= -->
 <form action="loan.php" method="POST" class="card" id="loanForm">
 
@@ -130,7 +148,7 @@ function finalSubmit() {
            min="5000"
            max="<?= $remainingLoan ?>"
            placeholder="₱5,000 - ₱10,000" required>
-           required>
+           
 
     <label>Tenure (Months)</label>
     <select name="tenure_months" required>
@@ -143,8 +161,13 @@ function finalSubmit() {
     </select>
 
     <!-- IMPORTANT: type=button -->
+    <?php if ($remainingLoan <= 0): ?>
+    <button disabled style="background:gray; cursor:not-allowed;">
+        Loan Limit Reached
+    </button>
+<?php else: ?>
     <button type="button" onclick="openConfirm()">Apply Loan</button>
-</form>
+<?php endif; ?>
 
 <!-- ================= TRANSACTIONS ================= -->
 <h2>Transactions</h2>

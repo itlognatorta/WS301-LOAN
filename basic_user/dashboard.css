@@ -306,6 +306,129 @@ button:hover {
     border-radius: 8px;
 }
 
+
+/* =========================
+   BILLING PAGE STYLES ONLY
+   (SAFE TO ADD TO dashboard.css)
+========================= */
+
+/* BILLING WRAPPER */
+.current-bill,
+.history {
+    margin-top: 20px;
+}
+
+/* BILL CARD */
+.bill-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 15px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+}
+
+/* BILL TEXT */
+.bill-card p {
+    margin: 6px 0;
+    color: #e5e7eb;
+}
+
+/* TOTAL DUE */
+.bill-card h3 {
+    margin-top: 10px;
+    color: #60a5fa;
+}
+
+/* NO BILLS MESSAGE */
+.no-bills {
+    color: #9ca3af;
+    font-style: italic;
+    margin-top: 10px;
+}
+
+/* =========================
+   HISTORY SECTION
+========================= */
+
+.history {
+    margin-top: 25px;
+}
+
+/* YEAR GROUP */
+.year-box {
+    margin-bottom: 15px;
+}
+
+/* MONTH GROUP */
+.month-box {
+    margin-left: 15px;
+}
+
+/* HISTORY ITEM CARD */
+.history-item {
+    background: rgba(255,255,255,0.04);
+    padding: 10px;
+    margin: 6px 0;
+    border-left: 4px solid #3b82f6;
+    border-radius: 8px;
+}
+
+/* =========================
+   BILLING STATUS COLORS
+========================= */
+
+.completed {
+    color: #4ade80;
+    font-weight: bold;
+}
+
+.overdue {
+    color: #f87171;
+    font-weight: bold;
+}
+
+.pending {
+    color: #facc15;
+    font-weight: bold;
+}
+
+/* =========================
+   BUTTON OVERRIDE (billing only)
+
+   
+========================= */
+
+/* SUPPORT BOTH DASHBOARD AND BILLING */
+
+.main-content {
+    margin-left: 240px;
+    padding: 30px;
+    width: calc(100% - 240px);
+    min-height: 100vh;
+}
+
+/* SAFETY: ensure content is visible */
+.main-content {
+    display: block;
+}
+
+.bill-card button {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    color: white;
+    padding: 12px;
+    border: none;
+    width: 100%;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.bill-card button:hover {
+    transform: translateY(-2px);
+}
+
 /* =========================
    RESPONSIVE (IMPORTANT)
 ========================= */
@@ -324,6 +447,8 @@ button:hover {
         flex-direction: column;
     }
 }
+
+
 
 @media (max-width: 600px) {
 

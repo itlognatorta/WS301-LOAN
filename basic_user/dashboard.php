@@ -15,10 +15,14 @@ $user = $stmt->fetch();
 
 // GET TRANSACTIONS
 $transactions = $pdo->prepare("
-    SELECT * FROM loan_transactions 
-    WHERE user_id=? 
-    ORDER BY no DESC LIMIT 5
+    SELECT tx_id, amount, tenure_months, status, no
+    FROM loan_transactions
+    WHERE user_id = ? 
+    AND status IN ('approved')
+    ORDER BY no DESC 
+    LIMIT 5
 ");
+
 $transactions->execute([$user_id]);
 
 // TOTAL LOAN
@@ -79,6 +83,7 @@ $totalLoan = $totalLoan->fetchColumn() ?? 0;
 <table>
 <tr>
 <th>ID</th>
+<th>Transaction ID</th>
 <th>Amount</th>
 <th>Months</th>
 <th>Status</th>
@@ -88,7 +93,8 @@ $totalLoan = $totalLoan->fetchColumn() ?? 0;
 <?php foreach($transactions as $t): ?>
 <tr>
 <td><?php echo $t['no']; ?></td>
-<td>₱<?php echo $t['amount']; ?></td>
+<td><?php echo $t['tx_id']; ?></td>
+<td>₱<?= number_format($t['amount'], 2) ?></td>
 <td><?php echo $t['tenure_months']; ?></td>
 <td class="<?php echo strtolower($t['status']); ?>">
 <?php echo $t['status']; ?>
