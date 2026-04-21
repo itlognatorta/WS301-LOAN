@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 14, 2026 at 09:21 AM
+-- Generation Time: Apr 21, 2026 at 09:22 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -50,6 +50,7 @@ INSERT INTO `admins` (`id`, `username`, `password_hash`, `created_at`) VALUES
 CREATE TABLE `billing` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
+  `loan_id` int(11) NOT NULL,
   `generated_date` date NOT NULL,
   `due_date` date NOT NULL,
   `loan_principal` decimal(10,2) DEFAULT NULL,
@@ -60,13 +61,6 @@ CREATE TABLE `billing` (
   `status` enum('pending','completed','overdue') DEFAULT 'pending',
   `paid_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `billing`
---
-
-INSERT INTO `billing` (`id`, `user_id`, `generated_date`, `due_date`, `loan_principal`, `monthly_amount`, `interest`, `penalty`, `total_due`, `status`, `paid_at`) VALUES
-(1, 1, '2026-04-12', '2026-05-10', 9700.00, 808.33, 300.00, 0.00, 9108.33, 'pending', NULL);
 
 -- --------------------------------------------------------
 
@@ -125,7 +119,33 @@ CREATE TABLE `loans` (
 --
 
 INSERT INTO `loans` (`id`, `user_id`, `principal`, `interest`, `received_amount`, `tenure_months`, `current_month`, `status`, `started_at`) VALUES
-(1, 1, 10000.00, 300.00, 9700.00, 12, 1, 'active', '2026-04-12 02:54:49');
+(1, 1, 10000.00, 300.00, 9700.00, 12, 1, 'active', '2026-04-12 02:54:49'),
+(6, 2, 5000.00, 150.00, 4850.00, 1, 1, 'active', '2026-04-21 06:23:58'),
+(7, 2, 5000.00, 150.00, 4850.00, 1, 1, 'active', '2026-04-21 06:45:43'),
+(8, 2, 5000.00, 150.00, 4850.00, 1, 1, 'active', '2026-04-21 06:45:45'),
+(9, 2, 5500.00, 165.00, 5335.00, 1, 1, 'active', '2026-04-21 06:51:38'),
+(10, 2, 5500.00, 165.00, 5335.00, 1, 1, 'active', '2026-04-21 07:06:58'),
+(11, 2, 5500.00, 165.00, 5335.00, 1, 1, 'active', '2026-04-21 07:08:39'),
+(12, 2, 5500.00, 165.00, 5335.00, 1, 1, 'active', '2026-04-21 07:18:16'),
+(13, 2, 5000.00, 150.00, 4850.00, 1, 1, 'active', '2026-04-21 07:19:17'),
+(14, 2, 5000.00, 150.00, 4850.00, 1, 1, 'active', '2026-04-21 07:22:12'),
+(15, 2, 5000.00, 150.00, 4850.00, 1, 1, 'active', '2026-04-21 07:22:14');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `loan_payment`
+--
+
+CREATE TABLE `loan_payment` (
+  `pay_id` int(11) NOT NULL,
+  `u_id` int(11) NOT NULL,
+  `loan_id` int(11) NOT NULL,
+  `amount_paid` varchar(255) NOT NULL,
+  `reference_no` varchar(255) NOT NULL,
+  `notes` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -151,8 +171,7 @@ CREATE TABLE `loan_requests` (
 
 INSERT INTO `loan_requests` (`id`, `user_id`, `amount`, `tenure_months`, `status`, `rejection_reason`, `approved_by`, `approved_at`, `created_at`) VALUES
 (1, 1, 10000.00, 12, 'approved', NULL, 1, NULL, '2026-04-12 02:54:49'),
-(2, 2, 5200.00, 1, 'pending', NULL, NULL, NULL, '2026-04-14 07:16:59'),
-(3, 2, 5000.00, 32, 'pending', NULL, NULL, NULL, '2026-04-14 07:17:10');
+(17, 2, 5000.00, 1, 'pending', NULL, NULL, NULL, '2026-04-21 07:19:11');
 
 -- --------------------------------------------------------
 
@@ -178,7 +197,9 @@ CREATE TABLE `loan_transactions` (
 
 INSERT INTO `loan_transactions` (`no`, `tx_id`, `user_id`, `type`, `amount`, `tenure_months`, `status`, `admin_note`, `created_at`) VALUES
 (1, 'LN202604124229', 1, 'apply', 6000.00, 6, 'pending', NULL, '2026-04-12 03:50:26'),
-(2, '', 2, 'apply', 5000.00, 1, 'pending', NULL, '2026-04-14 05:53:23');
+(14, 'TX-20260421-FC8E', 2, 'apply', 5000.00, 1, 'approved', NULL, '2026-04-21 07:19:17'),
+(15, 'TX-20260421-478F', 2, 'apply', 5000.00, 1, 'approved', NULL, '2026-04-21 07:22:12'),
+(16, 'TX-20260421-5206', 2, 'apply', 5000.00, 1, 'approved', NULL, '2026-04-21 07:22:14');
 
 -- --------------------------------------------------------
 
@@ -298,7 +319,7 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `account_type`, `name`, `address`, `gender`, `birthday`, `age`, `phone`, `bank_name`, `bank_account`, `account_holder`, `tin`, `company_name`, `company_address`, `company_phone`, `position`, `monthly_earnings`, `proof_billing_path`, `valid_id_path`, `coe_path`, `status`, `verified`, `savings_balance`, `current_loan_amount`, `max_loan_amount`, `max_tenure_months`, `last_savings_activity`, `created_at`, `updated_at`) VALUES
 (1, 'testpremium', 'test@premium.com', '$2y$10$DhQoONm5yRguHzDV3S7BfONHBk7lGFY/8EUKsqvQ/FI6ZEExFlA7G', 'premium', 'Test Premium User', '123 Test St, Manila', 'male', '1990-01-01', 0, '09171234567', 'BPI', '1234567890', 'Test Premium', '123456789', 'Test Corp', '456 Corp St', '028123456', 'Manager', 50000.00, NULL, NULL, NULL, 'active', 1, 1000.00, 0.00, 10000.00, 12, NULL, '2026-04-12 02:54:49', '2026-04-12 03:28:09'),
-(2, 'testbasic', 'test@basic.com', '$2y$10$DhQoONm5yRguHzDV3S7BfONHBk7lGFY/8EUKsqvQ/FI6ZEExFlA7G', 'basic', 'Mark Christian Cañedo', 'Lipata Minglanilla, Cebu', 'male', '1985-05-15', 0, '09223254679', 'BDO', '0987654321', 'Juan Dela Cruz', '987654321', 'Basic Inc', '789 Inc Ave', '029876543', 'Staff', 4000.00, NULL, NULL, NULL, 'active', 1, 0.00, 0.00, 10000.00, 12, NULL, '2026-04-12 02:54:49', '2026-04-14 05:37:48');
+(2, 'testbasic', 'test@basic.com', '$2y$10$DhQoONm5yRguHzDV3S7BfONHBk7lGFY/8EUKsqvQ/FI6ZEExFlA7G', 'basic', 'Mark Christian Cañedo', 'Lipata Minglanilla, Cebu', 'male', '1985-05-15', 0, '09223254679', 'BDO', '0987654321', 'Juan Dela Cruz', '987654321', 'Basic Inc', '789 Inc Ave', '029876543', 'Staff', 4000.00, NULL, NULL, NULL, 'active', 1, 0.00, 40500.00, 10000.00, 12, NULL, '2026-04-12 02:54:49', '2026-04-21 06:51:38');
 
 --
 -- Indexes for dumped tables
@@ -317,7 +338,8 @@ ALTER TABLE `admins`
 ALTER TABLE `billing`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_billing_user_status` (`user_id`,`status`);
+  ADD KEY `idx_billing_user_status` (`user_id`,`status`),
+  ADD KEY `loan_id` (`loan_id`);
 
 --
 -- Indexes for table `blocked_emails`
@@ -339,6 +361,14 @@ ALTER TABLE `company_earnings`
 ALTER TABLE `loans`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_loans_user` (`user_id`);
+
+--
+-- Indexes for table `loan_payment`
+--
+ALTER TABLE `loan_payment`
+  ADD PRIMARY KEY (`pay_id`),
+  ADD KEY `u_id` (`u_id`),
+  ADD KEY `loan_id` (`loan_id`);
 
 --
 -- Indexes for table `loan_requests`
@@ -411,7 +441,7 @@ ALTER TABLE `admins`
 -- AUTO_INCREMENT for table `billing`
 --
 ALTER TABLE `billing`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `blocked_emails`
@@ -429,19 +459,25 @@ ALTER TABLE `company_earnings`
 -- AUTO_INCREMENT for table `loans`
 --
 ALTER TABLE `loans`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+
+--
+-- AUTO_INCREMENT for table `loan_payment`
+--
+ALTER TABLE `loan_payment`
+  MODIFY `pay_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `loan_requests`
 --
 ALTER TABLE `loan_requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `loan_transactions`
 --
 ALTER TABLE `loan_transactions`
-  MODIFY `no` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `no` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `registration_requests`
@@ -481,13 +517,21 @@ ALTER TABLE `users`
 -- Constraints for table `billing`
 --
 ALTER TABLE `billing`
-  ADD CONSTRAINT `billing_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+  ADD CONSTRAINT `billing_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `billing_ibfk_2` FOREIGN KEY (`loan_id`) REFERENCES `loan_transactions` (`no`);
 
 --
 -- Constraints for table `loans`
 --
 ALTER TABLE `loans`
   ADD CONSTRAINT `loans_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `loan_payment`
+--
+ALTER TABLE `loan_payment`
+  ADD CONSTRAINT `loan_payment_ibfk_1` FOREIGN KEY (`u_id`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `loan_payment_ibfk_2` FOREIGN KEY (`loan_id`) REFERENCES `loan_transactions` (`no`);
 
 --
 -- Constraints for table `loan_requests`

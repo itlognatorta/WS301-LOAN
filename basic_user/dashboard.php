@@ -18,7 +18,7 @@ $transactions = $pdo->prepare("
     SELECT tx_id, amount, tenure_months, status, no
     FROM loan_transactions
     WHERE user_id = ? 
-    AND status IN ('approved')
+    AND status IN ('approved', 'request')
     ORDER BY no DESC 
     LIMIT 5
 ");
@@ -92,17 +92,17 @@ $totalLoan = $totalLoan->fetchColumn() ?? 0;
 <?php if($transactions->rowCount() > 0): ?>
 <?php foreach($transactions as $t): ?>
 <tr>
-<td><?php echo $t['no']; ?></td>
-<td><?php echo $t['tx_id']; ?></td>
-<td>₱<?= number_format($t['amount'], 2) ?></td>
-<td><?php echo $t['tenure_months']; ?></td>
-<td class="<?php echo strtolower($t['status']); ?>">
-<?php echo $t['status']; ?>
-</td>
+    <td><?php echo $t['no']; ?></td>
+    <td><?php echo $t['tx_id']; ?></td>
+    <td>₱<?= number_format($t['amount'], 2) ?></td>
+    <td><?php echo $t['tenure_months']; ?></td>
+    <td class="<?php echo strtolower($t['status']); ?>">
+        <?php echo $t['status']; ?>
+    </td>
 </tr>
 <?php endforeach; ?>
 <?php else: ?>
-<tr><td colspan="4">No transactions yet</td></tr>
+<tr><td colspan="5">No transactions yet</td></tr>
 <?php endif; ?>
 
 </table>
