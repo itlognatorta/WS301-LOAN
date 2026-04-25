@@ -381,11 +381,12 @@ ALTER TABLE `loan_requests`
 -- Indexes for table `loan_transactions`
 --
 ALTER TABLE `loan_transactions`
+MODIFY no INT(11) NOT NULL AUTO_INCREMENT,
   ADD PRIMARY KEY (`no`),
   ADD UNIQUE KEY `tx_id` (`tx_id`),
   ADD KEY `user_id` (`user_id`),
-  ADD interest DECIMAL(10,2),
-ADD net_amount DECIMAL(10,2);
+  ADD interest DECIMAL(10,2) DEFAULT 0 AFTER amount,
+  ADD net_amount DECIMAL(10,2) DEFAULT 0 AFTER interest;
 
 --
 -- Indexes for table `registration_requests`
@@ -428,6 +429,7 @@ ALTER TABLE `users`
   ADD KEY `idx_account_type` (`account_type`),
   ADD KEY `idx_email` (`email`),
   ADD KEY `idx_users_status_type` (`status`,`account_type`);
+ 
 
 --
 -- AUTO_INCREMENT for dumped tables
