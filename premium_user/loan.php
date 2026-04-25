@@ -11,78 +11,75 @@ $user_id = $_SESSION['user_id'];
 $error = "";
 $success = "";
 
-/* ================= CURRENT USED LOAN ================= */
+$max_credit = 10000;
+
+/* CURRENT USED LOAN */
 $stmt = $pdo->prepare("SELECT current_loan_amount FROM users WHERE id=?");
 $stmt->execute([$user_id]);
-$userInfo = $stmt->fetch(PDO::FETCH_ASSOC);
-$current_loan = $userInfo['current_loan_amount'] ?? 0;
+$current_loan = $stmt->fetchColumn();
 
-/* ================= APPLY LOAN ================= */
+if(!$current_loan){
+    $current_loan = 0;
+}
+
+$available_credit = $max_credit - $current_loan;
+
+/* APPLY LOAN */
 if(isset($_POST['apply'])){
 
     $amount = (int) $_POST['amount'];
     $months = (int) $_POST['months'];
 
     if($amount < 5000 || $amount > 10000 || $amount % 1000 != 0){
-        $error = "Loan amount must be ₱5,000 to ₱10,000 by thousands only.";
+        $error = "Loan must be ₱5,000 to ₱10,000 only.";
     }
     elseif(!in_array($months,[1,3,6,12])){
-        $error = "Invalid payable months.";
+        $error = "Invalid months selected.";
     }
-    elseif($current_loan >= 10000){
-        $error = "You already reached the ₱10,000 maximum unpaid loan. Please pay your existing loan first.";
+    elseif($current_loan >= $max_credit){
+        $error = "Maximum credit limit reached.";
     }
-    elseif(($current_loan + $amount) > 10000){
-        $remaining = 10000 - $current_loan;
-        $error = "You can only loan ₱".number_format($remaining,2)." more.";
+    elseif(($current_loan + $amount) > $max_credit){
+        $remaining = $max_credit - $current_loan;
+        $error = "You can only loan up to ₱".number_format($remaining,2);
     }
     else{
 
-        /* prevent duplicate pending request */
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM loan_requests WHERE user_id=? AND status='pending'");
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM loan_requests 
+            WHERE user_id=? AND status='pending'
+        ");
         $stmt->execute([$user_id]);
-        $pendingCount = $stmt->fetchColumn();
 
-        if($pendingCount > 0){
-            $error = "You still have a pending loan request waiting for admin approval.";
+        if($stmt->fetchColumn() > 0){
+            $error = "You still have a pending request.";
         }else{
 
             $stmt = $pdo->prepare("
-                INSERT INTO loan_requests
+                INSERT INTO loan_requests 
                 (user_id, amount, tenure_months, status, created_at)
                 VALUES (?, ?, ?, 'pending', NOW())
             ");
             $stmt->execute([$user_id,$amount,$months]);
 
-            $success = "Loan request submitted successfully and is now waiting for admin approval.";
+            $success = "Loan request submitted successfully.";
         }
     }
 }
 
-/* ================= USER REQUEST HISTORY ================= */
+/* REQUEST HISTORY */
 $stmt = $pdo->prepare("
-    SELECT * FROM loan_requests
-    WHERE user_id=?
-    ORDER BY id DESC
+    SELECT * FROM loan_requests 
+    WHERE user_id=? ORDER BY id DESC
 ");
 $stmt->execute([$user_id]);
-$request_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-/* ================= APPROVED LOAN TRANSACTIONS ================= */
-$stmt = $pdo->prepare("
-    SELECT * FROM loan_transactions
-    WHERE user_id=?
-    ORDER BY no DESC
-");
-$stmt->execute([$user_id]);
-$loan_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$requests = $stmt->fetchAll();
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-<title>Loan</title>
-<link rel="stylesheet" href="premiumdb.css">
+    <link rel="stylesheet" href="premiumdb.css">
 </head>
 <body>
 
@@ -91,100 +88,71 @@ $loan_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="main">
 
-<h2>Apply Loan</h2>
+<div class="premium-loan-wrapper">
 
-<?php if($error): ?>
-<div class="card" style="color:#f87171;"><?= $error ?></div>
-<?php endif; ?>
+    <h2 class="premium-loan-title">Loan Dashboard</h2>
 
-<?php if($success): ?>
-<div class="card success"><?= $success ?></div>
-<?php endif; ?>
+    <?php if($error): ?><div class="premium-loan-alert error"><?= $error ?></div><?php endif; ?>
+    <?php if($success): ?><div class="premium-loan-alert success"><?= $success ?></div><?php endif; ?>
 
-<div class="card">
-<h3>Loan Application</h3>
-<p><strong>Current Used Loan:</strong> ₱<?= number_format($current_loan,2) ?> / ₱10,000</p>
+    <div class="premium-loan-topcards">
+        <div class="premium-loan-creditbox">
+            <h4>Maximum Credit</h4>
+            <span>₱<?= number_format($max_credit,2) ?></span>
+        </div>
 
-<form method="POST">
-<label>Loan Amount</label>
-<input type="number" name="amount" required>
+        <div class="premium-loan-creditbox">
+            <h4>Used Loan</h4>
+            <span class="loan-used">₱<?= number_format($current_loan,2) ?></span>
+        </div>
 
-<label>Months to Pay</label>
-<select name="months" required>
-<option value="1">1 month</option>
-<option value="3">3 months</option>
-<option value="6">6 months</option>
-<option value="12">12 months</option>
-</select>
+        <div class="premium-loan-creditbox">
+            <h4>Available Credit</h4>
+            <span class="loan-available">₱<?= number_format($available_credit,2) ?></span>
+        </div>
+    </div>
 
-<button name="apply">Apply Loan</button>
-</form>
-</div>
+    <div class="premium-loan-panel">
+        <h3>New Loan Request</h3>
 
-<div class="card">
-<h3>Loan Request Status</h3>
-<table width="100%" border="1" cellpadding="10" cellspacing="0">
-<tr>
-<th>Request ID</th>
-<th>Amount</th>
-<th>Months</th>
-<th>Status</th>
-<th>Reason</th>
-<th>Date</th>
-</tr>
+        <form method="POST" class="premium-loan-form">
+            <label>Amount to Borrow</label>
+            <input type="number" name="amount" placeholder="Enter amount" min="5000" max="<?= $available_credit ?>" required>
 
-<?php if($request_history): ?>
-<?php foreach($request_history as $r): ?>
-<tr>
-<td><?= $r['id'] ?></td>
-<td>₱<?= number_format($r['amount'],2) ?></td>
-<td><?= $r['tenure_months'] ?></td>
-<td>
-<?php
-if($r['status']=='pending') echo "<span style='color:orange;'>Pending</span>";
-elseif($r['status']=='approved') echo "<span style='color:green;'>Approved</span>";
-else echo "<span style='color:red;'>Rejected</span>";
-?>
-</td>
-<td><?= $r['rejection_reason'] ?: '-' ?></td>
-<td><?= date("M d, Y", strtotime($r['created_at'])) ?></td>
-</tr>
-<?php endforeach; ?>
-<?php else: ?>
-<tr><td colspan="6">No loan requests yet.</td></tr>
-<?php endif; ?>
-</table>
-</div>
+            <label>Tenure (Months)</label>
+            <select name="months">
+                <option value="1">1 Month</option>
+                <option value="3">3 Months</option>
+                <option value="6">6 Months</option>
+                <option value="12">12 Months</option>
+            </select>
 
-<div class="card">
-<h3>Approved Loan Transactions</h3>
-<table width="100%" border="1" cellpadding="10" cellspacing="0">
-<tr>
-<th>TX ID</th>
-<th>Amount</th>
-<th>Interest</th>
-<th>Net Amount</th>
-<th>Months</th>
-<th>Status</th>
-<th>Date</th>
-</tr>
+            <button name="apply">Apply for Loan</button>
+        </form>
+    </div>
 
-<?php if($loan_history): ?>
-<?php foreach($loan_history as $t): ?>
-<tr>
-<td><?= $t['tx_id'] ?></td>
-<td>₱<?= number_format($t['amount'],2) ?></td>
-<td>₱<?= number_format($t['interest'],2) ?></td>
-<td>₱<?= number_format($t['net_amount'],2) ?></td>
-<td><?= $t['tenure_months'] ?></td>
-<td><span style="color:green;">Approved</span></td>
-<td><?= date("M d, Y", strtotime($t['created_at'])) ?></td>
-</tr>
-<?php endforeach; ?>
-<?php else: ?>
-<tr><td colspan="7">No approved loan transactions yet.</td></tr>
-<?php endif; ?>
-</table>
+    <h3 class="premium-loan-history-title">Request History</h3>
+
+    <div class="premium-loan-panel">
+        <table class="premium-loan-table">
+            <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Tenure</th>
+                <th>Status</th>
+            </tr>
+
+            <?php foreach($requests as $r): ?>
+            <tr>
+                <td><?= date("M d, Y", strtotime($r['created_at'])) ?></td>
+                <td>₱<?= number_format($r['amount'],2) ?></td>
+                <td><?= $r['tenure_months'] ?> mo.</td>
+                <td class="<?= $r['status'] ?>"><?= ucfirst($r['status']) ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+    </div>
+
 </div>
 
 </div>

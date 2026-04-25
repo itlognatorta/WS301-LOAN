@@ -27,6 +27,14 @@ $transactions = $pdo->prepare("
 ");
 $transactions->execute([$user_id]);
 
+/* RECENT APPROVED LOAN TRANSACTIONS */
+$loanTransactions = $pdo->prepare("
+    SELECT * FROM loan_transactions
+    WHERE user_id=? AND status='approved'
+    ORDER BY no DESC LIMIT 5
+");
+$loanTransactions->execute([$user_id]);
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -62,6 +70,15 @@ $transactions->execute([$user_id]);
 
 </div>
 
+<!-- 🔷 SYSTEM INFO (NEWLY ADDED CARD) -->
+<div class="card">
+<h3>Loan Information</h3>
+<p>✔ Minimum Loan: ₱5,000</p>
+<p>✔ Maximum Loan: ₱10,000</p>
+<p>✔ Payable: 1, 3, 6, 12 months</p>
+<p>✔ Pay on time to increase your loan limit</p>
+</div>
+
 <div class="card">
 <h3>Recent Savings Transactions</h3>
 
@@ -83,6 +100,41 @@ $transactions->execute([$user_id]);
 <td class="<?= $t['status'] ?>"><?= ucfirst($t['status']) ?></td>
 </tr>
 <?php endforeach; ?>
+
+</table>
+</div>
+
+<div class="card">
+<h3>Approved Loan Transactions</h3>
+
+<table>
+<tr>
+<th>No</th>
+<th>TX ID</th>
+<th>Loan Amount</th>
+<th>Interest</th>
+<th>Net Amount</th>
+<th>Months</th>
+<th>Date Approved</th>
+</tr>
+
+<?php foreach($loanTransactions as $l): ?>
+<tr>
+<td><?= $l['no'] ?></td>
+<td><?= $l['tx_id'] ?></td>
+<td>₱<?= number_format($l['amount'],2) ?></td>
+<td>₱<?= number_format($l['interest'],2) ?></td>
+<td>₱<?= number_format($l['net_amount'],2) ?></td>
+<td><?= $l['tenure_months'] ?></td>
+<td><?= date("M d, Y", strtotime($l['created_at'])) ?></td>
+</tr>
+<?php endforeach; ?>
+
+<?php if($loanTransactions->rowCount() == 0): ?>
+<tr>
+<td colspan="7">No approved loan transactions yet.</td>
+</tr>
+<?php endif; ?>
 
 </table>
 </div>
