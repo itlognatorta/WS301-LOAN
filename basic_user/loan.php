@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once _DIR_ . '/../db_connect_new.php';
+require_once __DIR__ . '/../db_connect_new.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.php');

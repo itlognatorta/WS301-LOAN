@@ -24,7 +24,7 @@ $stmt = $pdo->prepare("
 $stmt->execute();
 
 /* =========================
-   PAYMENT HANDLER (FIXED)
+   PAYMENT HANDLER
 ========================= */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_billing_id'])) {
 
@@ -51,21 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_billing_id'])) {
 
     $loan_id = $bill['loan_id'];
 
-    $check = $pdo->prepare("SELECT no FROM loan_transactions WHERE no = ?");
-    $check->execute([$loan_id]);
-
-    if (!$check->fetchColumn()) {
-        die("Error: Invalid loan reference.");
-    }
-
     $reference_no = "PAY-" . time() . "-" . rand(1000, 9999);
 
+    /* SAVE PAYMENT */
     $insert = $pdo->prepare("
         INSERT INTO loan_payment
         (u_id, loan_id, amount_paid, reference_no, notes, created_at)
         VALUES (?, ?, ?, ?, ?, NOW())
     ");
-
     $insert->execute([
         $user_id,
         $loan_id,
@@ -74,44 +67,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_billing_id'])) {
         "Billing payment"
     ]);
 
+    /* UPDATE BILL */
     $update = $pdo->prepare("
         UPDATE billing 
         SET penalty = ?, total_due = 0, status = 'completed', paid_at = NOW()
         WHERE id = ?
     ");
-
     $update->execute([$penalty, $billing_id]);
+
+    /* RETURN CREDIT */
+    $creditBack = $pdo->prepare("
+        UPDATE users 
+        SET current_loan_amount = current_loan_amount - ?
+        WHERE id = ?
+    ");
+    $creditBack->execute([$bill['monthly_amount'], $user_id]);
+
+    /* =========================
+       AUTO GENERATE NEXT BILLING
+    ========================== */
+
+    // get active loan
+    $loanStmt = $pdo->prepare("
+        SELECT * FROM loans 
+        WHERE user_id = ? AND status = 'active'
+        ORDER BY id DESC LIMIT 1
+    ");
+    $loanStmt->execute([$user_id]);
+    $loanData = $loanStmt->fetch(PDO::FETCH_ASSOC);
+
+    if($loanData){
+
+        $loan_tx_id = $bill['loan_id'];
+
+        // count existing bills
+        $countStmt = $pdo->prepare("
+            SELECT COUNT(*) FROM billing WHERE loan_id = ?
+        ");
+        $countStmt->execute([$loan_tx_id]);
+        $existingMonths = $countStmt->fetchColumn();
+
+        // generate only if not finished
+        if($existingMonths < $loanData['tenure_months']){
+
+            // get last due date
+            $lastDueStmt = $pdo->prepare("
+                SELECT due_date FROM billing 
+                WHERE loan_id = ?
+                ORDER BY due_date DESC LIMIT 1
+            ");
+            $lastDueStmt->execute([$loan_tx_id]);
+            $lastDue = $lastDueStmt->fetchColumn();
+
+            // next due date
+            $nextDueDate = date('Y-m-d', strtotime($lastDue . ' +28 days'));
+
+            // compute amounts
+            $monthly = $loanData['principal'] / $loanData['tenure_months'];
+
+            // ⚠️ CHANGE THIS IF INTEREST IS TOTAL ONLY
+            $interest = $loanData['interest']; 
+
+            $total_due = $monthly + $interest;
+
+            // insert next bill
+            $insertNext = $pdo->prepare("
+                INSERT INTO billing
+                (user_id, loan_id, generated_date, due_date, loan_principal, monthly_amount, interest, total_due, status)
+                VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, 'pending')
+            ");
+
+            $insertNext->execute([
+                $user_id,
+                $loan_tx_id,
+                $nextDueDate,
+                $loanData['principal'],
+                $monthly,
+                $interest,
+                $total_due
+            ]);
+        }
+    }
 
     header("Location: billing.php");
     exit;
 }
 
 /* =========================
-   CURRENT BILL
+   GET LOAN SUMMARY
 ========================= */
-$currentStmt = $pdo->prepare("
-    SELECT * FROM billing 
-    WHERE user_id = ? 
-    AND status IN ('pending','overdue')
-    ORDER BY generated_date DESC
-    LIMIT 1
+$loanStmt = $pdo->prepare("
+    SELECT * FROM loans 
+    WHERE user_id = ? AND status = 'active'
+    ORDER BY id DESC LIMIT 1
 ");
-$currentStmt->execute([$user_id]);
-$currentBill = $currentStmt->fetch(PDO::FETCH_ASSOC);
+$loanStmt->execute([$user_id]);
+$loan = $loanStmt->fetch(PDO::FETCH_ASSOC);
 
 /* =========================
-   HISTORY
+   GET BILLINGS
 ========================= */
-$historyStmt = $pdo->prepare("
+$stmt = $pdo->prepare("
     SELECT * FROM billing 
     WHERE user_id = ?
-    ORDER BY generated_date DESC
+    ORDER BY due_date ASC
 ");
-$historyStmt->execute([$user_id]);
-$history = $historyStmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->execute([$user_id]);
+$bills = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+/* =========================
+   HISTORY GROUPING
+========================= */
 $grouped = [];
-foreach ($history as $h) {
+foreach ($bills as $h) {
     $year = date('Y', strtotime($h['generated_date']));
     $month = date('F', strtotime($h['generated_date']));
     $grouped[$year][$month][] = $h;
@@ -121,141 +189,115 @@ foreach ($history as $h) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Billing</title>
-    <link rel="stylesheet" href="dashboard.css">
+<title>Billing</title>
+<link rel="stylesheet" href="dashboard.css">
 
 <script>
-function openPay(id, maxAmount) {
+function openPay(id, amount){
     document.getElementById("billing_id").value = id;
-    document.getElementById("payment_amount").value = maxAmount;
+    document.getElementById("payment_amount").value = amount;
     document.getElementById("payModal").classList.add("active");
 }
-
-function closePay() {
+function closePay(){
     document.getElementById("payModal").classList.remove("active");
 }
 </script>
-
 </head>
+
 <body>
-
 <div class="container">
-
 <?php include 'sidebar.php'; ?>
 
 <div class="main-content">
 
 <h2>Billing Page</h2>
 
-<!-- ================= CURRENT BILL ================= -->
-<div class="current-bill">
+<!-- ================= SUMMARY ================= -->
+<?php if($loan): ?>
+<h3>Billing Summary</h3>
 
-<h3>Current Billing</h3>
+<p><b>Loan Amount:</b> ₱<?= number_format($loan['principal'],2) ?></p>
+<p><b>Interest (3%):</b> ₱<?= number_format($loan['interest'],2) ?></p>
+<p><b>Total Amount on Hand:</b> ₱<?= number_format($loan['received_amount'],2) ?></p>
 
-<?php if (!$currentBill): ?>
-    <p class="no-bills">No bills to pay</p>
-<?php else: ?>
+<table>
+<tr>
+<th>Due Date</th>
+<th>Amount</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
 
-<?php
-$penalty = (date('Y-m-d') > $currentBill['due_date'])
-    ? $currentBill['monthly_amount'] * 0.02
-    : 0;
+<?php foreach($bills as $bill): 
 
-$total = $currentBill['monthly_amount'] + $currentBill['interest'] + $penalty;
+$penalty = (date('Y-m-d') > $bill['due_date']) ? $bill['monthly_amount'] * 0.02 : 0;
+$total = $bill['monthly_amount'] + $bill['interest'] + $penalty;
 ?>
 
-<div class="bill-card">
+<tr>
+<td><?= date("m/d/y", strtotime($bill['due_date'])) ?></td>
+<td>₱<?= number_format($total,2) ?></td>
+<td><?= $bill['status'] ?></td>
+<td>
+<?php if($bill['status'] != 'completed'): ?>
+<button class="pay-btn" onclick="openPay(<?= $bill['id'] ?>, <?= $total ?>)">Pay Now</button>
+<?php else: ?>
+-
+<?php endif; ?>
+</td>
+</tr>
 
-<p><b>Date Generated:</b> <?= $currentBill['generated_date'] ?></p>
-<p><b>Due Date:</b> <?= $currentBill['due_date'] ?></p>
+<?php endforeach; ?>
 
-<hr>
+</table>
 
-<p><b>Loaned Amount:</b> ₱<?= number_format($currentBill['loan_principal'],2) ?></p>
-<p><b>Monthly Amount:</b> ₱<?= number_format($currentBill['monthly_amount'],2) ?></p>
-<p><b>Interest (3%):</b> ₱<?= number_format($currentBill['interest'],2) ?></p>
-<p><b>Penalty (2%):</b> ₱<?= number_format($penalty,2) ?></p>
-
-<h3>Total Due: ₱<?= number_format($total,2) ?></h3>
-
-<p><b>Status:</b> 
-<span class="<?= strtolower($currentBill['status']) ?>">
-    <?= $currentBill['status'] ?>
-</span>
-</p>
-
-<button type="button"
-        onclick="openPay(<?= $currentBill['id'] ?>, <?= $total ?>)">
-    Pay Now
-</button>
-
-</div>
-
+<?php else: ?>
+<p>No bills to pay</p>
 <?php endif; ?>
 
-</div>
-
 <!-- ================= HISTORY ================= -->
-<div class="history">
-
 <h3>Billing History</h3>
 
 <?php foreach ($grouped as $year => $months): ?>
-    <div class="year-box">
-        <h4><?= $year ?></h4>
+<h4><?= $year ?></h4>
 
-        <?php foreach ($months as $month => $records): ?>
-            <div class="month-box">
-                <h5><?= $month ?></h5>
+<?php foreach ($months as $month => $records): ?>
+<h5><?= $month ?></h5>
 
-                <?php foreach ($records as $r): ?>
-                    <div class="history-item">
-                        <p>
-                            <?= $r['generated_date'] ?> -
-                            ₱<?= number_format($r['total_due'],2) ?> -
-                            <span class="<?= strtolower($r['status']) ?>">
-                                <?= $r['status'] ?>
-                            </span>
-                        </p>
-                    </div>
-                <?php endforeach; ?>
+<?php foreach ($records as $r): ?>
+<p>
+<?= $r['generated_date'] ?> - 
+₱<?= number_format($r['total_due'],2) ?> - 
+<?= $r['status'] ?>
+</p>
+<?php endforeach; ?>
 
-            </div>
-        <?php endforeach; ?>
-
-    </div>
+<?php endforeach; ?>
 <?php endforeach; ?>
 
 </div>
-
-</div>
 </div>
 
-<!-- ================= PAYMENT MODAL ================= -->
+<!-- ================= MODAL ================= -->
 <div id="payModal" class="modal-overlay">
-    <div class="modal-box">
+<div class="modal-box">
 
-        <h3>Pay Billing</h3>
+<h3>Pay Billing</h3>
 
-        <form method="POST">
+<form method="POST">
+<input type="hidden" name="pay_billing_id" id="billing_id">
 
-            <input type="hidden" name="pay_billing_id" id="billing_id">
+<label>Payment Amount</label>
+<input type="number" name="payment_amount" id="payment_amount" readonly required>
 
-            <label>Payment Amount</label>
-            <input type="number"
-                 name="payment_amount"
-                 id="payment_amount"
-                 readonly
-                 required>
+<div>
+<button type="button" onclick="closePay()">Cancel</button>
+<button type="submit">Confirm Payment</button>
+</div>
 
-            <div class="modal-actions">
-                <button type="button" onclick="closePay()">Cancel</button>
-                <button type="submit">Confirm Payment</button>
-            </div>
+</form>
 
-        </form>
-
-    </div>
+</div>
 </div>
 
 </body>

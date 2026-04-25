@@ -36,56 +36,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $tx_id = 'TX-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(2)));
 
-            /* insert official transaction history */
+            /* 1. INSERT TRANSACTION */
+       
             $stmt = $pdo->prepare("
-                INSERT INTO loan_transactions
-                (tx_id, user_id, type, amount, interest, net_amount, tenure_months, status, admin_note, created_at)
-                VALUES (?, ?, 'apply', ?, ?, ?, ?, 'approved', 'Admin Approved', NOW())
+            INSERT INTO loan_transactions
+            (tx_id, user_id, type, amount, interest, net_amount, tenure_months, status, admin_note, created_at)
+            VALUES (?, ?, 'apply', ?, ?, ?, ?, 'approved', 'Admin Approved', NOW())
             ");
+
             $stmt->execute([
-                $tx_id,
-                $user_id,
-                $amount,
-                $interest,
-                $net_amount,
-                $months
+            $tx_id,
+            $user_id,
+            $amount,
+            $interest,
+            $net_amount,
+            $months
             ]);
 
-            /* create master active loan */
+            // ✅ THIS is the REAL FIX
+            $loan_tx_id = $pdo->lastInsertId(); // MUST be used
+
+            /* 2. INSERT MASTER LOAN */
             $stmt = $pdo->prepare("
-                INSERT INTO loans
-                (user_id, principal, interest, received_amount, tenure_months, current_month, status)
-                VALUES (?, ?, ?, ?, ?, 1, 'active')
+            INSERT INTO loans
+            (user_id, principal, interest, received_amount, tenure_months, current_month, status)
+            VALUES (?, ?, ?, ?, ?, 1, 'active')
             ");
+
             $stmt->execute([
-                $user_id,
-                $amount,
-                $interest,
-                $net_amount,
-                $months
+            $user_id,
+            $amount,
+            $interest,
+            $net_amount,
+            $months
             ]);
 
-            $loan_id = $pdo->lastInsertId();
-
-            /* create first billing record */
+            /* 3. CREATE BILLING */
             $total_due = $monthly + $interest;
 
             $stmt = $pdo->prepare("
-                INSERT INTO billing
-                (user_id, loan_id, generated_date, due_date, loan_principal, monthly_amount, interest, total_due, status)
-                VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, 'pending')
+            INSERT INTO billing
+            (user_id, loan_id, generated_date, due_date, loan_principal, monthly_amount, interest, total_due, status)
+            VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, 'pending')
             ");
+
             $stmt->execute([
-                $user_id,
-                $loan_id,
-                $dueDate,
-                $amount,
-                $monthly,
-                $interest,
-                $total_due
+            $user_id,
+            $loan_tx_id,   // ✅ MUST be INTEGER from lastInsertId
+            $dueDate,
+            $amount,
+            $monthly,
+            $interest,
+            $total_due
             ]);
 
-            /* update request to approved */
+            /* 4. UPDATE REQUEST */
             $stmt = $pdo->prepare("
                 UPDATE loan_requests
                 SET status='approved', approved_by=?, approved_at=NOW()
@@ -93,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             $stmt->execute([$_SESSION['admin_id'], $request_id]);
 
-            /* update user's used loan tracker */
+            /* 5. UPDATE USER CREDIT USAGE */
             $stmt = $pdo->prepare("
                 UPDATE users
                 SET current_loan_amount = current_loan_amount + ?
@@ -124,7 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $request_id
                 ]);
 
-                /* optional rejected transaction history */
                 $tx_id = 'TX-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(2)));
 
                 $stmt = $pdo->prepare("
@@ -146,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-/* ================= FETCH PENDING REQUESTS ================= */
+/* ================= FETCH DATA ================= */
 $stmt = $pdo->prepare("
     SELECT lr.*, u.name, u.email
     FROM loan_requests lr
@@ -157,7 +161,6 @@ $stmt = $pdo->prepare("
 $stmt->execute();
 $pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/* ================= FETCH ALL TRANSACTIONS ================= */
 $stmt = $pdo->prepare("
     SELECT lt.*, u.name, u.email
     FROM loan_transactions lt
@@ -204,6 +207,16 @@ textarea{width:100%;padding:5px;}
 
 <div class="header">
     <h1>Loan Management</h1>
+
+    <div style="display:flex; gap:10px;">
+        <button onclick="goBack()" style="padding:8px 16px;background:#4a92ff;border:none;color:white;border-radius:5px;cursor:pointer;">
+            ← Back
+        </button>
+
+        <button onclick="location.reload()" style="padding:8px 16px;background:#28a745;border:none;color:white;border-radius:5px;cursor:pointer;">
+            ↻ Refresh
+        </button>
+    </div>
 </div>
 
 <?php if($message): ?>
@@ -215,7 +228,7 @@ textarea{width:100%;padding:5px;}
     <button class="tab" onclick="showTab('all')">Loan Transactions</button>
 </div>
 
-<!-- ================= PENDING REQUESTS ================= -->
+<!-- PENDING -->
 <div id="pending-tab" class="table-container">
 <h3>Pending Loan Requests</h3>
 
@@ -229,7 +242,6 @@ textarea{width:100%;padding:5px;}
 <th>Action</th>
 </tr>
 
-<?php if($pending_requests): ?>
 <?php foreach($pending_requests as $r): ?>
 <tr>
 <td><?= $r['id'] ?></td>
@@ -245,23 +257,15 @@ textarea{width:100%;padding:5px;}
 <button class="btn-approve">Approve</button>
 </form>
 
-<form method="POST">
-<input type="hidden" name="request_id" value="<?= $r['id'] ?>">
-<input type="hidden" name="action" value="reject">
-<textarea name="reason" placeholder="Reason for rejection..." required></textarea>
-<button class="btn-reject">Reject</button>
-</form>
+<button class="btn-reject" onclick="openRejectModal(<?= $r['id'] ?>)">Reject</button>
 
 </td>
 </tr>
 <?php endforeach; ?>
-<?php else: ?>
-<tr><td colspan="6">No pending requests.</td></tr>
-<?php endif; ?>
 </table>
 </div>
 
-<!-- ================= ALL LOAN TRANSACTIONS ================= -->
+<!-- ALL -->
 <div id="all-tab" class="table-container" style="display:none;">
 <h3>All Loan Transactions</h3>
 
@@ -274,7 +278,6 @@ textarea{width:100%;padding:5px;}
 <th>Net Amount</th>
 <th>Months</th>
 <th>Status</th>
-<th>Admin Note</th>
 <th>Date</th>
 </tr>
 
@@ -287,11 +290,9 @@ textarea{width:100%;padding:5px;}
 <td>₱<?= number_format($l['net_amount'],2) ?></td>
 <td><?= $l['tenure_months'] ?></td>
 <td><?= ucfirst($l['status']) ?></td>
-<td><?= $l['admin_note'] ?: '-' ?></td>
 <td><?= date("M d, Y", strtotime($l['created_at'])) ?></td>
 </tr>
 <?php endforeach; ?>
-
 </table>
 </div>
 
@@ -301,9 +302,11 @@ textarea{width:100%;padding:5px;}
 function showTab(tab){
     document.querySelectorAll('.table-container').forEach(e=>e.style.display='none');
     document.getElementById(tab+'-tab').style.display='block';
-
     document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
     event.target.classList.add('active');
+}
+function goBack(){
+    window.location.href = 'admindashboard.php';
 }
 </script>
 
