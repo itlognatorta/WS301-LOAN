@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/../db_connect_new.php';
+require_once _DIR_ . '/../db_connect_new.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.php');
@@ -8,285 +8,191 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-
 $maxLoan = 10000;
+$minLoan = 5000;
+$modalMessage = '';
 
-/* =========================
-   TOTAL BORROWED (APPROVED)
-========================= */
-$stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(amount),0)
-    FROM loan_transactions
-    WHERE user_id = ?
-    AND status = 'approved'
-");
+/* ==========================================================
+   1. REVOLVING CREDIT LOGIC
+========================================================== */
+
+// Sum of PENDING requests
+$stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM loan_requests WHERE user_id = ? AND status = 'pending'");
 $stmt->execute([$user_id]);
-$totalBorrowed = (float)$stmt->fetchColumn();
+$pendingAmount = (float)$stmt->fetchColumn();
 
-/* =========================
-   TOTAL PAID (RESTORES CREDIT)
-========================= */
-$stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(amount_paid),0)
-    FROM loan_payment
-    WHERE u_id = ?
-");
+// RULE: Approved loans move to the billing table. 
+// We sum UNPAID principal. Credit ONLY "turns back" when status becomes 'paid'.
+$stmt = $pdo->prepare("SELECT COALESCE(SUM(loan_principal), 0) FROM billing WHERE user_id = ? AND status = 'unpaid'");
 $stmt->execute([$user_id]);
-$totalPaid = (float)$stmt->fetchColumn();
+$unpaidPrincipal = (float)$stmt->fetchColumn();
 
-/* =========================
-   ACTIVE LOAN (REAL DEBT)
-========================= */
-$activeLoan = max(0, $totalBorrowed - $totalPaid);
+$totalUtilized = $pendingAmount + $unpaidPrincipal;
+$availableCredit = max(0, $maxLoan - $totalUtilized);
 
-/* =========================
-   AVAILABLE CREDIT (REAL LIMIT)
-========================= */
-$availableCredit = $maxLoan - $activeLoan;
-
-
-/* =========================
-   TOTAL REQUESTED (OPTIONAL DISPLAY ONLY)
-   ❗ DO NOT USE FOR LIMIT CHECK
-========================= */
-$stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(amount),0)
-    FROM loan_requests
-    WHERE user_id = ?
-    AND status IN ('pending','approved')
-");
-$stmt->execute([$user_id]);
-$totalRequested = (float)$stmt->fetchColumn();
-
-
-/* =========================
-   APPLY LOAN
-========================= */
-$message = '';
-
+/* ==========================================================
+   2. HANDLE LOAN APPLICATION (POST)
+========================================================== */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
     $amount = (float)($_POST['amount'] ?? 0);
     $months = (int)($_POST['tenure_months'] ?? 0);
 
-    /* =========================
-       BASIC VALIDATION
-    ========================= */
-    if ($amount < 5000) {
-        $message = "❌ Minimum loan is ₱5,000.";
-    }
-    elseif ($months <= 0) {
-        $message = "❌ Invalid loan duration.";
-    }
-    else {
-
-        /* =========================
-           RE-CALCULATE CREDIT (SAFE)
-        ========================= */
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(amount),0)
-            FROM loan_transactions
-            WHERE user_id = ?
-            AND status = 'approved'
-        ");
-        $stmt->execute([$user_id]);
-        $totalBorrowed = (float)$stmt->fetchColumn();
-
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(amount_paid),0)
-            FROM loan_payment
-            WHERE u_id = ?
-        ");
-        $stmt->execute([$user_id]);
-        $totalPaid = (float)$stmt->fetchColumn();
-
-        $activeLoan = max(0, $totalBorrowed - $totalPaid);
-        $availableCredit = $maxLoan - $activeLoan;
-
-        /* =========================
-           REQUEST LIMIT CHECK (10K TOTAL REQUEST LIMIT)
-        ========================= */
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(amount),0)
-            FROM loan_requests
-            WHERE user_id = ?
-        ");
-        $stmt->execute([$user_id]);
-        $totalRequested = (float)$stmt->fetchColumn();
-
-        if (($totalRequested + $amount) > $maxLoan) {
-            $message = "❌ Cannot request loan. You've already reached the ₱10,000 request limit.";
-        }
-
-        /* =========================
-           CREDIT CHECK
-        ========================= */
-        elseif ($amount > $availableCredit) {
-            $message = "❌ Not enough credit. Remaining: ₱" . number_format($availableCredit,2);
-        }
-
-        /* =========================
-           INSERT REQUEST
-        ========================= */
-        else {
-
-            $stmt = $pdo->prepare("
-                INSERT INTO loan_requests
-                (user_id, amount, tenure_months, status, created_at)
-                VALUES (?, ?, ?, 'pending', NOW())
-            ");
-
-            $stmt->execute([$user_id, $amount, $months]);
-
-            header("Location: loan.php");
-            exit;
-        }
+    // Backend validation just in case JS is bypassed
+    if ($amount >= $minLoan && ($totalUtilized + $amount) <= $maxLoan) {
+        $stmt = $pdo->prepare("INSERT INTO loan_requests (user_id, amount, tenure_months, status, created_at) VALUES (?, ?, ?, 'pending', NOW())");
+        $stmt->execute([$user_id, $amount, $months]);
+        header("Location: loan.php?status=success");
+        exit;
     }
 }
 
-
-$availableCredit = $maxLoan - $activeLoan;
-$remainingCredit = $availableCredit;
-$remainingRequest = max(0, $maxLoan - $totalRequested);
-
-if (!isset($remainingCredit)) {
-    $remainingCredit = 0;
-}
-
-if (!isset($remainingRequest)) {
-    $remainingRequest = 0;
-}
-
+$stmt = $pdo->prepare("SELECT id, amount, tenure_months, status, created_at FROM loan_requests WHERE user_id = ? ORDER BY id DESC");
+$stmt->execute([$user_id]);
+$transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Loan</title>
-<link rel="stylesheet" href="dashboard.css">
+    <meta charset="UTF-8">
+    <title>Loan Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script>
+        // MODAL VALIDATION LOGIC
+        function validateAndOpenConfirm() {
+            const amount = parseFloat(document.getElementsByName("amount")[0].value);
+            const available = <?= $availableCredit ?>;
+            const min = <?= $minLoan ?>;
 
+            if (isNaN(amount) || amount < min) {
+                showErrorModal("Minimum loan is ₱" + min.toLocaleString());
+                return;
+            }
+            if (amount > available) {
+                showErrorModal("Insufficient Credit. Your available limit is ₱" + available.toLocaleString());
+                return;
+            }
 
-<script>
-function openConfirm() {
-    document.getElementById("confirmModal").classList.add("active");
-}
-function closeConfirm() {
-    document.getElementById("confirmModal").classList.remove("active");
-}
-function submitLoan() {
-    document.getElementById("confirmModal").classList.remove("active");
-    document.getElementById("successModal").classList.add("active");
-}
-function finalSubmit() {
-    document.getElementById("successModal").classList.remove("active");
-    document.getElementById("loanForm").submit();
-}
-</script>
+            document.getElementById("confirmModal").classList.add("active");
+        }
 
+        function showErrorModal(msg) {
+            document.getElementById("errorMsg").innerText = msg;
+            document.getElementById("errorModal").classList.add("active");
+        }
+
+        function closeModals() {
+            const modals = document.querySelectorAll('.modal-overlay');
+            modals.forEach(m => m.classList.remove('active'));
+        }
+
+        function submitForm() {
+            document.getElementById("loanForm").submit();
+        }
+
+        // Auto-show success modal if redirected
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('status') === 'success') {
+                document.getElementById("successModal").classList.add("active");
+            }
+        }
+    </script>
 </head>
-
 <body>
 
 <div class="container">
-<?php include 'sidebar.php'; ?>
+    <?php include 'sidebar.php'; ?>
 
-<div class="main">
+    <div class="main">
+        <h2>Loan Dashboard</h2>
 
-<h2>Loan Dashboard</h2>
+        <div class="cards">
+            <div class="card-box">
+                <h3>Total Credit Pool</h3>
+                <p>₱ <?= number_format($maxLoan, 2) ?></p>
+            </div>
+            <div class="card-box">
+                <h3>Utilized Loan</h3>
+                <p style="color: #dc2626;">₱ <?= number_format($totalUtilized, 2) ?></p>
+            </div>
+            <div class="card-box">
+                <h3>Available Credit</h3>
+                <p style="color: #059669;">₱ <?= number_format($availableCredit, 2) ?></p>
+            </div>
+        </div>
 
-<?php if ($message): ?>
-<div class="success" style="background:#dc2626;">
-    <?= $message ?>
-</div>
-<?php endif; ?>
+        <div class="card application-section">
+            <h3 style="margin-bottom: 15px;">New Loan Request</h3>
+            <form method="POST" id="loanForm">
+                <label>Amount to Borrow</label>
+                <input type="number" name="amount" placeholder="Enter amount" required>
 
-<!-- ================= CARDS ================= -->
-<div class="cards">
+                <label>Tenure (Months)</label>
+                <select name="tenure_months" required>
+                    <option value="1">1 Month</option>
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="12">12 Months</option>
+                </select>
 
-    <div class="card-box">
-        <h3>Maximum Loan</h3>
-        <p>₱ <?= number_format($maxLoan, 2) ?></p>
+                <?php if ($availableCredit < $minLoan): ?>
+                    <button type="button" class="btn-disabled" disabled style="background:#9ca3af;">
+                        Limit Reached (Must pay existing debt)
+                    </button>
+                <?php else: ?>
+                    <button type="button" class="btn-primary" onclick="validateAndOpenConfirm()">Apply for Loan</button>
+                <?php endif; ?>
+            </form>
+        </div>
+
+        <h3 style="margin-top: 30px;">Request History</h3>
+        <div class="card">
+            <table width="100%">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Tenure</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($transactions as $t): ?>
+                        <tr>
+                            <td><?= date('M d, Y', strtotime($t['created_at'])) ?></td>
+                            <td>₱<?= number_format($t['amount'], 2) ?></td>
+                            <td><?= $t['tenure_months'] ?> mo.</td>
+                            <td>
+                                <span class="status-text" style="font-weight:bold; color: <?= ($t['status'] == 'pending' ? '#d97706' : ($t['status'] == 'approved' ? '#059669' : '#dc2626')) ?>">
+                                    <?= ucfirst($t['status']) ?>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
+</div>
 
-    <div class="card-box">
-        <h3>Remaining Credit</h3>
-        <p>₱ <?= number_format($remainingCredit, 2) ?></p>
+<div class="modal-overlay" id="errorModal">
+    <div class="modal-box">
+        <h3 style="color:#dc2626;">Validation Error</h3>
+        <p id="errorMsg"></p>
+        <div class="modal-actions">
+            <button onclick="closeModals()" style="background:#black;">Close</button>
+        </div>
     </div>
-
-    <div class="card-box">
-        <h3>Remaining Request</h3>
-        <p>₱ <?= number_format($remainingRequest, 2) ?></p>
-    </div>
-
 </div>
 
-<!-- ================= LOAN FORM ================= -->
-<form method="POST" class="card" id="loanForm">
-
-    <label>Amount</label>
-    <input type="number"
-           name="amount"
-           min="5000"
-           max="<?= min($remainingRequest, $remainingCredit) ?>"
-           required>
-
-    <label>Tenure (Months)</label>
-    <select name="tenure_months" required>
-        <option value="1">1 Month</option>
-        <option value="3">3 Months</option>
-        <option value="6">6 Months</option>
-        <option value="12">12 Months</option>
-    </select>
-
-    <?php if ($remainingRequest <= 0 || $remainingCredit <= 0): ?>
-        <button disabled style="background:gray;">Limit Reached</button>
-    <?php else: ?>
-        <button type="button" onclick="openConfirm()">Apply Loan</button>
-    <?php endif; ?>
-
-</form>
-
-<!-- ================= TRANSACTIONS ================= -->
-<h2>Transactions</h2>
-
-<div class="card">
-<table>
-<tr>
-    <th>ID</th>
-    <th>Amount</th>
-    <th>Months</th>
-    <th>Status</th>
-</tr>
-
-<?php if (!empty($transactions)): ?>
-    <?php foreach ($transactions as $t): ?>
-        <tr>
-            <td><?= $t['id'] ?></td>
-            <td>₱<?= number_format($t['amount'],2) ?></td>
-            <td><?= $t['tenure_months'] ?></td>
-            <td><?= $t['status'] ?></td>
-        </tr>
-    <?php endforeach; ?>
-<?php else: ?>
-<tr>
-    <td colspan="4">No transactions</td>
-</tr>
-<?php endif; ?>
-
-</table>
-</div>
-
-</div>
-</div>
-
-<!-- MODALS -->
 <div class="modal-overlay" id="confirmModal">
     <div class="modal-box">
-        <h3>Confirm Loan</h3>
-        <p>Proceed with loan request?</p>
+        <h3>Confirm Request</h3>
+        <p>Would you like to submit this loan for review?</p>
         <div class="modal-actions">
-            <button onclick="closeConfirm()">No</button>
-            <button onclick="submitLoan()">Yes</button>
+            <button onclick="closeModals()" style="background:#black;">Cancel</button>
+            <button onclick="submitForm()" style="background:#2563eb; color:white;">Yes, Submit</button>
         </div>
     </div>
 </div>
@@ -294,9 +200,9 @@ function finalSubmit() {
 <div class="modal-overlay" id="successModal">
     <div class="modal-box">
         <h3>Success</h3>
-        <p>Loan submitted for approval.</p>
+        <p>Loan Request submitted successfully! It is now pending admin review.</p>
         <div class="modal-actions">
-            <button onclick="finalSubmit()">OK</button>
+            <button onclick="window.location.href='loan.php'" style="background:#059669; color:white;">Continue</button>
         </div>
     </div>
 </div>

@@ -383,7 +383,9 @@ ALTER TABLE `loan_requests`
 ALTER TABLE `loan_transactions`
   ADD PRIMARY KEY (`no`),
   ADD UNIQUE KEY `tx_id` (`tx_id`),
-  ADD KEY `user_id` (`user_id`);
+  ADD KEY `user_id` (`user_id`),
+  ADD interest DECIMAL(10,2),
+ADD net_amount DECIMAL(10,2);
 
 --
 -- Indexes for table `registration_requests`
