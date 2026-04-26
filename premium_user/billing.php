@@ -15,101 +15,164 @@ $stmt = $pdo->prepare("SELECT * FROM users WHERE id=?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-/* ================= PAY BILL ================= */
-if(isset($_POST['pay_bill'])){
+/* ================= GET ACTIVE LOAN ================= */
+$loanStmt = $pdo->prepare("
+    SELECT * FROM loans 
+    WHERE user_id = ? AND status = 'active'
+    ORDER BY id DESC LIMIT 1
+");
+$loanStmt->execute([$user_id]);
+$loanData = $loanStmt->fetch(PDO::FETCH_ASSOC);
 
-    $bill_id = intval($_POST['bill_id']);
+/* ================= AUTO BILLING GENERATION ================= */
+if ($loanData && isset($loanData['id'])) {
+
+    $loan_id = $loanData['id'];
+
+    $principal = (float)$loanData['principal'];
+    $months = (int)$loanData['tenure_months'];
+
+    if ($months <= 0) $months = 1;
+
+    /* stop if all bills generated */
+    $countStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM billing 
+        WHERE loan_id = ?
+    ");
+    $countStmt->execute([$loan_id]);
+    $billCount = $countStmt->fetchColumn();
+
+    if ($billCount < $months) {
+
+        $lastBill = $pdo->prepare("
+            SELECT generated_date 
+            FROM billing 
+            WHERE loan_id = ? 
+            ORDER BY generated_date DESC 
+            LIMIT 1
+        ");
+        $lastBill->execute([$loan_id]);
+        $lastDate = $lastBill->fetchColumn();
+
+        $baseDate = $lastDate ?: ($loanData['created_at'] ?? date('Y-m-d'));
+        $nextBilling = date("Y-m-d", strtotime("+1 month", strtotime($baseDate)));
+
+        $check = $pdo->prepare("
+            SELECT COUNT(*) FROM billing
+            WHERE loan_id = ? AND generated_date = ?
+        ");
+        $check->execute([$loan_id, $nextBilling]);
+
+        if ($check->fetchColumn() == 0) {
+
+            $monthly = $principal / $months;
+            $interest = $monthly * 0.03;
+
+            $pdo->prepare("
+                INSERT INTO billing
+                (user_id, loan_id, generated_date, due_date,
+                 loan_principal, monthly_amount, interest, penalty, total_due, status)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+            ")->execute([
+                $user_id,
+                $loan_id,
+                $nextBilling,
+                date("Y-m-d", strtotime("+28 days", strtotime($nextBilling))),
+                $principal,
+                $monthly,
+                $interest,
+                0,
+                $monthly + $interest,
+                'pending'
+            ]);
+        }
+    }
+}
+
+/* ================= AUTO OVERDUE ================= */
+$pdo->prepare("
+    UPDATE billing
+    SET 
+        status='overdue',
+        penalty = monthly_amount * 0.02,
+        total_due = monthly_amount + interest + (monthly_amount * 0.02)
+    WHERE status='pending' AND due_date < CURDATE()
+")->execute();
+
+/* ================= PAY BILL ================= */
+if (isset($_POST['pay_bill'])) {
+
+    $bill_id = $_POST['bill_id'];
 
     $stmt = $pdo->prepare("
         SELECT * FROM billing 
         WHERE id=? AND user_id=? AND status!='completed'
     ");
-    $stmt->execute([$bill_id,$user_id]);
+    $stmt->execute([$bill_id, $user_id]);
     $bill = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if($bill){
+    if ($bill) {
 
-        /* mark billing completed */
-        $stmt = $pdo->prepare("
-            UPDATE billing
-            SET status='completed', paid_at=NOW()
-            WHERE id=?
-        ");
-        $stmt->execute([$bill_id]);
+        $pay_amount = (float)$bill['total_due'];
 
-        /* deduct current loan amount */
-        $stmt = $pdo->prepare("
-            UPDATE users
-            SET current_loan_amount = current_loan_amount - ?
-            WHERE id=?
-        ");
-        $stmt->execute([$bill['monthly_amount'], $user_id]);
+        /* ================= CALCULATE PRINCIPAL PORTION ================= */
+        $monthly = (float)$bill['monthly_amount'];
+        $interest = (float)$bill['interest'];
+        $penalty = (float)$bill['penalty'];
 
-        /* check if loan fully paid */
-        $stmt = $pdo->prepare("
-            SELECT SUM(monthly_amount) as paid_total, loan_id
-            FROM billing
-            WHERE loan_id=? AND status='completed'
-        ");
-        $stmt->execute([$bill['loan_id']]);
-        $paidInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+        // ONLY PRINCIPAL RETURNS TO CREDIT
+        $principal_return = $monthly;
 
-        $stmt = $pdo->prepare("SELECT principal FROM loans WHERE id=?");
-        $stmt->execute([$bill['loan_id']]);
-        $principal = $stmt->fetchColumn();
-
-        if($paidInfo['paid_total'] >= $principal){
-            $pdo->prepare("
-                UPDATE loans SET status='paid'
-                WHERE id=?
-            ")->execute([$bill['loan_id']]);
-        }
-
-        $message = "Billing payment completed successfully.";
-    }
-}
-
-/* ================= AUTO OVERDUE CHECK ================= */
-$all = $pdo->prepare("SELECT * FROM billing WHERE user_id=?");
-$all->execute([$user_id]);
-$tempBills = $all->fetchAll(PDO::FETCH_ASSOC);
-
-foreach($tempBills as $tb){
-
-    if($tb['status'] == 'pending' && strtotime($tb['due_date']) < time()){
-
-        $penalty = $tb['monthly_amount'] * 0.02;
-        $newTotal = $tb['monthly_amount'] + $tb['interest'] + $penalty;
-
+        /* ================= UPDATE BILL ================= */
         $pdo->prepare("
-            UPDATE billing
-            SET status='overdue', penalty=?, total_due=?
+            UPDATE billing 
+            SET total_due = 0,
+                status='completed',
+                paid_at=NOW()
             WHERE id=?
-        ")->execute([$penalty,$newTotal,$tb['id']]);
+        ")->execute([$bill_id]);
+
+        /* ================= RECORD PAYMENT ================= */
+        $pdo->prepare("
+            INSERT INTO loan_payment
+            (u_id, loan_id, amount_paid, reference_no, notes, created_at)
+            VALUES (?,?,?,?,?,NOW())
+        ")->execute([
+            $user_id,
+            $bill['loan_id'],
+            $pay_amount,
+            uniqid("REF"),
+            "Monthly payment"
+        ]);
+
+        /* ================= RETURN CREDIT (ONLY PRINCIPAL) ================= */
+        $pdo->prepare("
+            UPDATE users
+            SET current_loan_amount = GREATEST(current_loan_amount - ?, 0)
+            WHERE id=?
+        ")->execute([$principal_return, $user_id]);
+
+        $message = "Payment successful!";
     }
 }
 
-/* ================= CURRENT BILL ================= */
+/* ================= CURRENT BILLS ================= */
 $stmt = $pdo->prepare("
-    SELECT b.*, l.received_amount
-    FROM billing b
-    JOIN loans l ON b.loan_id = l.id
-    WHERE b.user_id=? AND b.status!='completed'
-    ORDER BY b.generated_date ASC
+    SELECT * FROM billing
+    WHERE user_id=? AND status!='completed'
+    ORDER BY generated_date ASC
 ");
 $stmt->execute([$user_id]);
 $currentBills = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/* ================= BILL HISTORY ================= */
+/* ================= HISTORY ================= */
 $stmt = $pdo->prepare("
-    SELECT b.*, l.received_amount
-    FROM billing b
-    JOIN loans l ON b.loan_id = l.id
-    WHERE b.user_id=?
-    ORDER BY b.generated_date DESC
+    SELECT * FROM billing
+    WHERE user_id=?
+    ORDER BY generated_date DESC
 ");
 $stmt->execute([$user_id]);
-$historyBills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -131,41 +194,29 @@ $historyBills = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="card success"><?= $message ?></div>
 <?php endif; ?>
 
-<!-- ================= CURRENT BILLING ================= -->
+<!-- CURRENT BILL -->
 <?php if(count($currentBills) == 0): ?>
-
-<div class="card">
-<h3>No bills to pay</h3>
-</div>
-
+<div class="card"><h3>No bills to pay</h3></div>
 <?php else: ?>
 
 <?php foreach($currentBills as $b): ?>
 <div class="card">
 
-<h3>Current Billing Details</h3>
+<p><b>Date Generated:</b> <?= $b['generated_date'] ?></p>
+<p><b>Due Date:</b> <?= $b['due_date'] ?></p>
+<p><b>Loan Amount:</b> ₱<?= number_format($b['loan_principal'],2) ?></p>
+<p><b>Monthly:</b> ₱<?= number_format($b['monthly_amount'],2) ?></p>
+<p><b>Interest:</b> ₱<?= number_format($b['interest'],2) ?></p>
+<p><b>Penalty:</b> ₱<?= number_format($b['penalty'],2) ?></p>
+<p><b>Total Due:</b> ₱<?= number_format($b['total_due'],2) ?></p>
 
-<p><strong>Date Generated:</strong> <?= $b['generated_date'] ?></p>
-<p><strong>Due Date:</strong> <?= $b['due_date'] ?></p>
-<p><strong>Borrower:</strong> <?= htmlspecialchars($user['name']) ?></p>
-<p><strong>Account Type:</strong> <?= ucfirst($user['account_type']) ?></p>
-<p><strong>Loaned Amount:</strong> ₱<?= number_format($b['loan_principal'],2) ?></p>
-<p><strong>Received Amount:</strong> ₱<?= number_format($b['received_amount'],2) ?></p>
-<p><strong>Amount to Pay this Month:</strong> ₱<?= number_format($b['monthly_amount'],2) ?></p>
-<p><strong>Interest (3%):</strong> ₱<?= number_format($b['interest'],2) ?></p>
-<p><strong>Penalty (2%):</strong> ₱<?= number_format($b['penalty'],2) ?></p>
-<p><strong>Total Due:</strong> ₱<?= number_format($b['total_due'],2) ?></p>
-
-<p><strong>Status:</strong>
-<?php
-if($b['status']=='pending') echo "<span style='color:orange;'>Pending</span>";
-elseif($b['status']=='overdue') echo "<span style='color:red;'>Overdue</span>";
-?>
+<p><b>Status:</b> 
+<?= $b['status']=='overdue' ? "<span style='color:red'>Overdue</span>" : "<span style='color:orange'>Pending</span>" ?>
 </p>
 
 <form method="POST">
-<input type="hidden" name="bill_id" value="<?= $b['id'] ?>">
-<button name="pay_bill">Pay Bill</button>
+    <input type="hidden" name="bill_id" value="<?= $b['id'] ?>">
+    <button name="pay_bill">Pay Bill</button>
 </form>
 
 </div>
@@ -173,36 +224,28 @@ elseif($b['status']=='overdue') echo "<span style='color:red;'>Overdue</span>";
 
 <?php endif; ?>
 
-<!-- ================= BILLING HISTORY ================= -->
+<!-- HISTORY -->
 <div class="card">
 <h3>Billing History</h3>
 
-<table width="100%" border="1" cellpadding="10" cellspacing="0">
+<table border="1" width="100%">
 <tr>
-<th>Year</th>
-<th>Month</th>
-<th>Generated</th>
+<th>Date</th>
 <th>Due</th>
 <th>Total</th>
 <th>Status</th>
 <th>Paid At</th>
 </tr>
 
-<?php foreach($historyBills as $h): ?>
+<?php foreach($history as $h): ?>
 <tr>
-<td><?= date("Y", strtotime($h['generated_date'])) ?></td>
-<td><?= date("F", strtotime($h['generated_date'])) ?></td>
 <td><?= $h['generated_date'] ?></td>
 <td><?= $h['due_date'] ?></td>
 <td>₱<?= number_format($h['total_due'],2) ?></td>
 <td><?= ucfirst($h['status']) ?></td>
-<td><?= $h['paid_at'] ? date("M d, Y", strtotime($h['paid_at'])) : '-' ?></td>
+<td><?= $h['paid_at'] ?? '-' ?></td>
 </tr>
 <?php endforeach; ?>
-
-<?php if(count($historyBills)==0): ?>
-<tr><td colspan="7">No billing history yet.</td></tr>
-<?php endif; ?>
 
 </table>
 </div>

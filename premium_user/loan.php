@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../db_connect_new.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /WS301-LOAN/login.php');
+    header('Location: ../login.php');
     exit;
 }
 
@@ -13,18 +13,20 @@ $success = "";
 
 $max_credit = 10000;
 
-/* CURRENT USED LOAN */
-$stmt = $pdo->prepare("SELECT current_loan_amount FROM users WHERE id=?");
+/* USED CREDIT = ONLY APPROVED LOANS */
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(amount),0)
+    FROM loan_requests 
+    WHERE user_id=? 
+    AND status='approved'
+");
 $stmt->execute([$user_id]);
-$current_loan = $stmt->fetchColumn();
+$used_credit = (float)$stmt->fetchColumn();
 
-if(!$current_loan){
-    $current_loan = 0;
-}
+/* AVAILABLE CREDIT */
+$available_credit = max(0, $max_credit - $used_credit);
 
-$available_credit = $max_credit - $current_loan;
-
-/* APPLY LOAN */
+/* ================= APPLY LOAN ================= */
 if(isset($_POST['apply'])){
 
     $amount = (int) $_POST['amount'];
@@ -36,15 +38,12 @@ if(isset($_POST['apply'])){
     elseif(!in_array($months,[1,3,6,12])){
         $error = "Invalid months selected.";
     }
-    elseif($current_loan >= $max_credit){
-        $error = "Maximum credit limit reached.";
-    }
-    elseif(($current_loan + $amount) > $max_credit){
-        $remaining = $max_credit - $current_loan;
-        $error = "You can only loan up to ₱".number_format($remaining,2);
+    elseif($amount > $available_credit){
+        $error = "Insufficient available credit.";
     }
     else{
 
+        /* CHECK PENDING REQUEST */
         $stmt = $pdo->prepare("
             SELECT COUNT(*) FROM loan_requests 
             WHERE user_id=? AND status='pending'
@@ -67,13 +66,14 @@ if(isset($_POST['apply'])){
     }
 }
 
-/* REQUEST HISTORY */
+/* ================= REQUEST HISTORY ================= */
 $stmt = $pdo->prepare("
     SELECT * FROM loan_requests 
-    WHERE user_id=? ORDER BY id DESC
+    WHERE user_id=? 
+    ORDER BY id DESC
 ");
 $stmt->execute([$user_id]);
-$requests = $stmt->fetchAll();
+$requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -92,32 +92,46 @@ $requests = $stmt->fetchAll();
 
     <h2 class="premium-loan-title">Loan Dashboard</h2>
 
-    <?php if($error): ?><div class="premium-loan-alert error"><?= $error ?></div><?php endif; ?>
-    <?php if($success): ?><div class="premium-loan-alert success"><?= $success ?></div><?php endif; ?>
+    <?php if($error): ?>
+        <div class="premium-loan-alert error"><?= $error ?></div>
+    <?php endif; ?>
 
+    <?php if($success): ?>
+        <div class="premium-loan-alert success"><?= $success ?></div>
+    <?php endif; ?>
+
+    <!-- TOP CARDS -->
     <div class="premium-loan-topcards">
+
         <div class="premium-loan-creditbox">
             <h4>Maximum Credit</h4>
             <span>₱<?= number_format($max_credit,2) ?></span>
         </div>
 
         <div class="premium-loan-creditbox">
-            <h4>Used Loan</h4>
-            <span class="loan-used">₱<?= number_format($current_loan,2) ?></span>
+            <h4>Used Credit</h4>
+            <span class="loan-used">₱<?= number_format($used_credit,2) ?></span>
         </div>
 
         <div class="premium-loan-creditbox">
             <h4>Available Credit</h4>
             <span class="loan-available">₱<?= number_format($available_credit,2) ?></span>
         </div>
+
     </div>
 
+    <!-- LOAN FORM -->
     <div class="premium-loan-panel">
         <h3>New Loan Request</h3>
 
         <form method="POST" class="premium-loan-form">
+
             <label>Amount to Borrow</label>
-            <input type="number" name="amount" placeholder="Enter amount" min="5000" max="<?= $available_credit ?>" required>
+            <input type="number" name="amount" 
+                   placeholder="Enter amount"
+                   min="5000"
+                   max="<?= $available_credit ?>"
+                   required>
 
             <label>Tenure (Months)</label>
             <select name="months">
@@ -128,13 +142,16 @@ $requests = $stmt->fetchAll();
             </select>
 
             <button name="apply">Apply for Loan</button>
+
         </form>
     </div>
 
+    <!-- HISTORY -->
     <h3 class="premium-loan-history-title">Request History</h3>
 
     <div class="premium-loan-panel">
         <table class="premium-loan-table">
+
             <tr>
                 <th>Date</th>
                 <th>Amount</th>
@@ -147,9 +164,12 @@ $requests = $stmt->fetchAll();
                 <td><?= date("M d, Y", strtotime($r['created_at'])) ?></td>
                 <td>₱<?= number_format($r['amount'],2) ?></td>
                 <td><?= $r['tenure_months'] ?> mo.</td>
-                <td class="<?= $r['status'] ?>"><?= ucfirst($r['status']) ?></td>
+                <td class="<?= $r['status'] ?>">
+                    <?= ucfirst($r['status']) ?>
+                </td>
             </tr>
             <?php endforeach; ?>
+
         </table>
     </div>
 
@@ -157,5 +177,6 @@ $requests = $stmt->fetchAll();
 
 </div>
 </div>
+
 </body>
 </html>
