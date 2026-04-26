@@ -99,6 +99,20 @@ INSERT INTO `company_earnings` (`id`, `year`, `total_income`, `money_back_distri
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `moneyback_transactions`
+--
+
+CREATE TABLE moneyback_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    earnings_year INT NOT NULL,
+    amount_received DECIMAL(10,2) NOT NULL,
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `loans`
 --
 
