@@ -13,6 +13,7 @@ $total_premium = 0;
 $pending_regs = 0;
 $total_loans = 0;
 $total_earnings = 0;
+$money_back = 0;
 $error = '';
 
 if ($dbConnected && $pdo) {
@@ -30,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $income = floatval($_POST['income']);
     $stmt = $pdo->prepare("REPLACE INTO company_earnings (year, total_income) VALUES (?, ?)");
     if ($stmt->execute([$year, $income])) {
+        $money_back = $total_premium > 0 ? ($income * 0.02) / $total_premium : 0;
         $success = 'Earnings updated. Money back can be distributed.';
     }
 }
@@ -41,43 +43,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | Loan System</title>
     <link rel="stylesheet" href="../index.css">
+    <link rel="stylesheet" href="admin.css">
     <style>
-        body { background: linear-gradient(160deg, #04112b 0%, #0b1b42 35%, #122d5f 100%); color: #e8efff; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .admin-dash { max-width: 1180px; margin: 24px auto; padding: 20px; }
-        .header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
-        .header-row h1 { margin: 0; font-size: clamp(1.75rem, 2.5vw, 2.25rem); color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.35); }
-        .btn { border: none; border-radius: 999px; padding: 10px 20px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .2s;
-            box-shadow: 0 6px 18px rgba(29, 99, 255, 0.35); }
+        body { margin: 0; min-height: 100vh; color: #e8f1ff; background: radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.18), transparent 16%), linear-gradient(180deg, #020717 0%, #06102c 48%, #0f1e44 100%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        * { box-sizing: border-box; }
+        .admin-dash { max-width: 1360px; margin: 24px auto; padding: 24px; }
+        .header-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 26px; }
+        .header-row h1 { margin: 0; font-size: clamp(2rem, 2.8vw, 3rem); color: #f8fbff; letter-spacing: -0.03em; }
+        .btn { border: none; border-radius: 999px; padding: 12px 22px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; }
         .btn:hover { transform: translateY(-1px); }
-        .btn-primary { background: linear-gradient(135deg, #4a92ff, #758cff); color: #fff; }
-        .btn-outline { color: #d5e2ff; background: rgba(255,255,255,0.12); border: 1px solid rgba(213,226,255,0.5); }
-        .btn-outline:hover { background: rgba(255,255,255,0.2); }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
-        .stat { position: relative; background: linear-gradient(145deg, rgba(7, 17, 33, 0.8), rgba(12, 36, 66, 0.9)); border: 1px solid rgba(136, 172, 255, 0.18); border-radius: 20px; padding: 20px 18px; min-height: 110px; box-shadow: 0 10px 25px rgba(0,0,0,0.28); overflow: hidden; }
-        .stat h3 { margin: 0; font-size: 2.1rem; color: #ffffff; }
-        .stat p { margin: 6px 0 0 0; text-transform: uppercase; letter-spacing: .06em; font-size: 0.88rem; color: #bbc7ea; }
-        .section-card { background: rgba(5, 18, 45, 0.78); border: 1px solid rgba(170, 193, 255, 0.2); border-radius: 20px; box-shadow: 0 12px 28px rgba(0,0,0,0.22); margin-bottom: 24px; }
-        .section-card h2 { margin: 0 0 12px; color: #d7e4ff; font-size: 1.4rem; }
-        .section-card form { display: grid; gap: 12px; max-width: 560px; }
-        .section-card input { width: 100%; border-radius: 12px; border: 1px solid rgba(202, 215, 255, 0.28); background: rgba(25, 46, 77, 0.9); color: #eef4ff; padding: 11px 13px; font-size: 0.95rem; }
-        .section-card input::placeholder { color: rgba(215, 228, 255, 0.72); }
-        .section-card p { color: #b9c9f5; margin-top: 10px; font-size: 0.9rem; }
-        .nav-links { display: flex; flex-wrap: wrap; gap: 12px; }
-        .nav-links .btn-primary { box-shadow: 0 8px 24px rgba(87, 117, 255, 0.35); }
-        @media (max-width: 730px) {
-            .admin-dash { padding: 18px; }
-            .header-row { flex-direction: column; align-items: flex-start; }
-            .stats-grid { grid-template-columns: 1fr; }
-        }
+        .btn-primary { background: #38bdf8; color: #031425; box-shadow: 0 18px 40px rgba(56, 189, 248, 0.22); }
+        .btn-outline { color: #d5e2ff; background: rgba(255,255,255,0.1); border: 1px solid rgba(213,226,255,0.32); }
+        .btn-outline:hover { background: rgba(255,255,255,0.16); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px; }
+        .stat { background: rgba(255,255,255,0.05); border: 1px solid rgba(96, 165, 250, 0.16); border-radius: 24px; padding: 24px; min-height: 140px; box-shadow: 0 24px 80px rgba(0,0,0,0.16); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.22s ease, border-color 0.22s ease; }
+        .stat:hover { transform: translateY(-2px); border-color: rgba(56, 189, 248, 0.28); }
+        .stat h3 { margin: 0; font-size: 2.4rem; color: #f8fbff; }
+        .stat p { margin: 10px 0 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.88rem; color: #bbd7ff; }
+        .section-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(96,165,250,0.12); border-radius: 26px; box-shadow: 0 18px 50px rgba(0,0,0,0.16); margin-bottom: 24px; padding: 28px; }
+        .section-card h2 { margin: 0 0 14px; color: #e5efff; font-size: 1.5rem; }
+        .section-card form { display: grid; gap: 16px; max-width: 560px; }
+        .section-card input { width: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e8f1ff; padding: 14px 16px; font-size: 0.96rem; }
+        .section-card input::placeholder { color: rgba(226,232,255,0.7); }
+        .section-card p { color: #cbd5e1; margin-top: 10px; font-size: 0.94rem; }
+        @media (max-width: 840px) { .admin-dash { padding: 18px; } .header-row { flex-direction: column; align-items: flex-start; } .stats-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-    <div class="admin-dash">
-        <div style="display: flex; justify-content: space-between;">
-            <h1>Admin Dashboard</h1>
-            <a href="../logout.php" class="btn btn-outline">Logout</a>
-        </div>
-        <div class="stats-grid">
+    <div class="admin-shell">
+        <aside class="sidebar">
+            <div class="brand">Loan Admin</div>
+            <nav class="sidebar-nav">
+                <a href="admindashboard.php" class="nav-item active"><span class="icon">🏠</span><span>Dashboard</span></a>
+                <a href="users.php" class="nav-item"><span class="icon">👥</span><span>Manage Users</span></a>
+                <a href="loans.php" class="nav-item"><span class="icon">💰</span><span>Loan Requests</span></a>
+                <a href="savings.php" class="nav-item"><span class="icon">🏦</span><span>Savings Requests</span></a>
+                <a href="billing.php" class="nav-item"><span class="icon">🧾</span><span>Billing Overview</span></a>
+            </nav>
+        </aside>
+        <main class="admin-content">
+            <div class="admin-dash">
+                <div class="page-header">
+                    <div class="title-block">
+                        <p class="breadcrumb">Admin <span>›</span> Dashboard</p>
+                        <h1 class="page-title">Admin Dashboard</h1>
+                        <p class="page-subtitle">Monitor users, loan requests, savings activity, and billing status from a single unified dashboard.</p>
+                    </div>
+                    <div>
+                        <a href="../logout.php" class="btn btn-outline">Logout</a>
+                    </div>
+                </div>
+                <div class="stats-grid">
             <div class="stat">
                 <h3><?php echo $total_users; ?></h3>
                 <p>Total Users</p>
@@ -117,13 +133,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </form>
             <p>Formula: (Income * 0.02) / Premium Users → Add to savings.</p>
+            <?php if (!empty($money_back) && $total_premium > 0): ?>
+            <p>Estimated money back per premium user: PHP <?= number_format($money_back, 2) ?></p>
+            <?php endif; ?>
         </div>
-        <div class="nav-links" style="margin-bottom: 34px;">
-            <a href="users.php" class="btn btn-primary">Manage Users</a>
-            <a href="loans.php" class="btn btn-primary">Loan Requests</a>
-            <a href="savings.php" class="btn btn-primary">Savings Requests</a>
-            <a href="billing.php" class="btn btn-primary">Billing Overview</a>
-        </div>
+        </main>
     </div>
 </body>
 </html>

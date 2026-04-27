@@ -55,44 +55,67 @@ $all_users = $stmt->fetchAll();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - User Management | Loan System</title>
     <link rel="stylesheet" href="../index.css">
+    <link rel="stylesheet" href="admin.css">
     <style>
-        body { background: linear-gradient(160deg, #04112b 0%, #0b1b42 35%, #122d5f 100%); color: #e8efff; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .admin-container { max-width: 1400px; margin: 24px auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .header h1 { margin: 0; color: #ffffff; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab { padding: 10px 20px; background: #1a1a2e; border: none; color: #e8efff; cursor: pointer; border-radius: 5px; }
-        .tab.active { background: #4a92ff; }
-        .table-container { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        th { background: rgba(255,255,255,0.1); color: #4a92ff; }
-        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
-        .btn-approve { background: #28a745; color: white; }
-        .btn-reject { background: #dc3545; color: white; }
-        .btn-edit { background: #17a2b8; color: white; }
-        .btn-block { background: #ffc107; color: black; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
-        .modal-content { background: #1a1a2e; margin: 5% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 600px; max-height: 80%; overflow-y: auto; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .user-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-        .detail-group { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; }
-        .detail-group h4 { margin: 0 0 8px 0; color: #4a92ff; }
+        body { margin: 0; min-height: 100vh; color: #e8f1ff; background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 18%), linear-gradient(180deg, #020816 0%, #071227 46%, #101f42 100%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        * { box-sizing: border-box; }
+        .admin-container { max-width: 1360px; margin: 24px auto; padding: 24px; }
+        .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 22px; }
+        .header h1 { margin: 0; font-size: clamp(2rem, 2.5vw, 2.6rem); letter-spacing: -0.04em; }
+        .tabs { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+        .tab { padding: 12px 20px; border: none; border-radius: 999px; background: rgba(255,255,255,0.08); color: #dbeafe; cursor: pointer; transition: background 0.18s ease, transform 0.18s ease; }
+        .tab:hover { transform: translateY(-1px); background: rgba(56, 189, 248, 0.18); }
+        .tab.active { background: #2563eb; color: #fff; }
+        .table-container { background: rgba(255,255,255,0.05); border: 1px solid rgba(56,189,248,0.12); border-radius: 24px; padding: 24px; box-shadow: 0 24px 70px rgba(0,0,0,0.16); }
+        table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+        th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        thead th { color: #94a3b8; font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .btn { border: none; border-radius: 999px; padding: 10px 16px; cursor: pointer; font-weight: 700; transition: transform 0.16s ease, filter 0.16s ease; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-approve { background: #22c55e; color: #03181e; }
+        .btn-reject { background: #ef4444; color: #fff; }
+        .btn-edit { background: #0ea5e9; color: #fff; }
+        .btn-block { background: #f59e0b; color: #0f172a; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; padding: 24px; }
+        .modal-content { background: rgba(8, 18, 42, 0.96); margin: auto; padding: 26px; border-radius: 24px; width: min(100%, 700px); max-height: 90vh; overflow-y: auto; border: 1px solid rgba(56,189,248,0.14); }
+        .close { color: #cbd5e1; font-size: 28px; font-weight: bold; cursor: pointer; float: right; }
+        .user-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 20px 0; }
+        .detail-group { background: rgba(255,255,255,0.05); padding: 18px; border-radius: 16px; }
+        .detail-group h4 { margin: 0 0 10px 0; color: #7dd3fc; }
         .files { margin-top: 20px; }
         .file-preview { display: inline-block; margin: 10px; text-align: center; }
-        .file-preview img { max-width: 200px; max-height: 200px; border: 1px solid #ccc; }
-        .message { padding: 10px; margin-bottom: 20px; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
+        .file-preview img { max-width: 100%; height: auto; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); }
+        .message { padding: 14px 18px; margin-bottom: 22px; border-radius: 18px; background: rgba(34,197,94,0.14); color: #dcfce7; border: 1px solid rgba(34,197,94,0.25); }
+        .success { background: rgba(34,197,94,0.12); color: #d9f99d; }
+        .error { background: rgba(239,68,68,0.12); color: #fecaca; }
+        @media (max-width: 860px) { .admin-container { padding: 18px; } .header, .tabs { flex-direction: column; align-items: flex-start; } .user-details { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-
-<div class="admin-container">
-    <div class="header">
-        <h1>User Management</h1>
-        <a href="admindashboard.php" class="btn" style="background: #6c757d; color: white; text-decoration: none;">Back to Dashboard</a>
-    </div>
+    <div class="admin-shell">
+        <aside class="sidebar">
+            <div class="brand">Loan Admin</div>
+            <nav class="sidebar-nav">
+                <a href="admindashboard.php" class="nav-item"><span class="icon">🏠</span><span>Dashboard</span></a>
+                <a href="users.php" class="nav-item active"><span class="icon">👥</span><span>Manage Users</span></a>
+                <a href="loans.php" class="nav-item"><span class="icon">💰</span><span>Loan Requests</span></a>
+                <a href="savings.php" class="nav-item"><span class="icon">🏦</span><span>Savings Requests</span></a>
+                <a href="billing.php" class="nav-item"><span class="icon">🧾</span><span>Billing Overview</span></a>
+            </nav>
+        </aside>
+        <main class="admin-content">
+            <div class="admin-container">
+                <div class="page-header">
+                    <div class="title-block">
+                        <p class="breadcrumb">Dashboard <span>›</span> Manage Users</p>
+                        <h1 class="page-title">User Management</h1>
+                        <p class="page-subtitle">Review pending registrations, update account status, and manage user profiles from one place.</p>
+                    </div>
+                    <div>
+                        <a href="admindashboard.php" class="btn btn-secondary">Back to Dashboard</a>
+                    </div>
+                </div>
 
     <?php if ($message): ?>
     <div class="message success"><?php echo $message; ?></div>
@@ -181,7 +204,8 @@ $all_users = $stmt->fetchAll();
             </tbody>
         </table>
     </div>
-</div>
+        </main>
+    </div>
 
 <!-- User Details Modal -->
 <div id="userModal" class="modal">

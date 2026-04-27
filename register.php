@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = trim($_POST['contact'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    // =========================
+    // =========================D
     // STEP 2: WORK & BANK
     // =========================
     $bank_name = trim($_POST['bank_name'] ?? '');
@@ -81,6 +81,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($count >= 50) {
             $errors[] = "Premium slots are full.";
+        }
+    }
+
+    // =========================
+    // CHECK DUPLICATE USERNAME / EMAIL / TIN
+    // =========================
+    if (empty($errors)) {
+        $stmt = $pdo->prepare("SELECT username, email, tin FROM users WHERE username = ? OR email = ? OR tin = ?");
+        $stmt->execute([$username, $email, $tin]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing) {
+            if ($existing['username'] === $username) {
+                $errors[] = "Username is already in use.";
+            }
+            if ($existing['email'] === $email) {
+                $errors[] = "Email is already in use.";
+            }
+            if ($existing['tin'] === $tin) {
+                $errors[] = "TIN is already in use.";
+            }
         }
     }
 

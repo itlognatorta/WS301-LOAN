@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // CHECK STATUS
                 elseif (strtolower($user['status']) !== 'active') {
-                    $passwordError = 'Account is inactive.';
+                    $passwordError = 'Account is inactive. Current status: ' . htmlspecialchars($user['status']) . '.';
                 }
 
                 // LOGIN SUCCESS

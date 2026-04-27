@@ -46,39 +46,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Admin Login | Loan System</title>
     <link rel="stylesheet" href="../index.css">
     <style>
-        .admin-login { 
-            max-width: 400px; 
-            margin: 100px auto; 
-            padding: 40px; 
-            background: rgba(255,255,255,0.1); 
-            border-radius: 20px; 
-            backdrop-filter: blur(10px);
-            color: white;
-        }
-        .admin-login h1 { text-align: center; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
-        .form-group input { 
-            width: 100%; 
-            padding: 12px; 
-            border-radius: 12px; 
-            border: 1px solid rgba(255,255,255,0.2); 
-            background: rgba(255,255,255,0.08); 
-            color: white;
-        }
-        .btn-primary {
-            width: 100%; 
-            padding: 12px; 
-            background: #3b82f6; 
-            border: none; 
-            border-radius: 12px; 
-            color: white; 
-            cursor: pointer;
-        }
-        .btn-primary:hover { background: #2563eb; }
-        a { color: #60a5fa; text-decoration: none; display: block; text-align: center; margin-top: 15px; }
+        body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top left, rgba(56,189,248,0.15), transparent 18%), linear-gradient(180deg, #020814 0%, #071227 45%, #101f42 100%); color: #e8f1ff; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; display:flex; align-items:center; justify-content:center; padding:24px; }
+        * { box-sizing: border-box; }
+        .admin-login { width: min(100%, 420px); padding: 38px 32px; background: rgba(255,255,255,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 30px; box-shadow: 0 32px 90px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        .admin-login h1 { margin: 0 0 24px; font-size: clamp(2rem, 3vw, 2.4rem); text-align: center; color: #f8fbff; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #cbd5e1; font-size: 0.95rem; }
+        .form-group input { width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: #e8f1ff; outline: none; }
+        .form-group input:focus { border-color: rgba(56,189,248,0.9); box-shadow: 0 0 0 4px rgba(56,189,248,0.12); }
+        .btn-primary { width: 100%; padding: 14px 18px; background: #38bdf8; border: none; border-radius: 16px; color: #031425; font-weight: 700; cursor: pointer; transition: transform 0.16s ease, background 0.16s ease; }
+        .btn-primary:hover { transform: translateY(-1px); background: #0ea5e9; }
+        a { color: #93c5fd; text-decoration: none; display: block; text-align: center; margin-top: 18px; }
         a:hover { text-decoration: underline; }
-        .error { color: #ff6b6b; margin-bottom: 15px; text-align: center; }
+        .error { color: #fecaca; margin-bottom: 16px; text-align: center; }
     </style>
 </head>
 <body>
